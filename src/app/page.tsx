@@ -1,0 +1,272 @@
+'use client';
+
+import React, { useState } from 'react';
+import {
+    Box,
+    Container,
+    Grid,
+    Tabs,
+    Tab,
+    Paper,
+    useMediaQuery,
+    useTheme,
+    ToggleButton,
+    ToggleButtonGroup,
+} from '@mui/material';
+import {
+    Analytics as TestIcon,
+    LocalFireDepartment as LiveIcon,
+} from '@mui/icons-material';
+import { Header } from '@/components/Header';
+import { FactorList } from '@/components/FactorList/FactorList';
+import {
+    SessionPanel,
+    TradeRecorder,
+    TestResults,
+    TestTrades,
+    TestCharts,
+} from '@/components/TestMode';
+import {
+    ModelList,
+    TradePanel,
+    TradeList,
+    ModelStats,
+    SessionHistory as LiveSessionHistory,
+} from '@/components/LiveTrading';
+
+interface TabPanelProps {
+    children?: React.ReactNode;
+    index: number;
+    value: number;
+}
+
+function TabPanel(props: TabPanelProps) {
+    const { children, value, index, ...other } = props;
+
+    return (
+        <div
+            role="tabpanel"
+            hidden={value !== index}
+            id={`results-tabpanel-${index}`}
+            aria-labelledby={`results-tab-${index}`}
+            {...other}
+        >
+            {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+        </div>
+    );
+}
+
+type AppMode = 'test' | 'live';
+
+export default function Home() {
+    const theme = useTheme();
+    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const [appMode, setAppMode] = useState<AppMode>('test');
+    const [testTab, setTestTab] = useState(0);
+    const [liveTab, setLiveTab] = useState(0);
+
+    return (
+        <Box
+            sx={{
+                minHeight: '100vh',
+                bgcolor: 'background.default',
+                display: 'flex',
+                flexDirection: 'column',
+            }}
+        >
+            <Header />
+
+            {/* Mode Switcher */}
+            <Box
+                sx={{
+                    display: 'flex',
+                    justifyContent: 'center',
+                    py: 2,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                }}
+            >
+                <ToggleButtonGroup
+                    value={appMode}
+                    exclusive
+                    onChange={(_, newMode) => newMode && setAppMode(newMode)}
+                    size="medium"
+                >
+                    <ToggleButton
+                        value="test"
+                        sx={{
+                            px: 3,
+                            gap: 1,
+                            fontWeight: 600,
+                            '&.Mui-selected': {
+                                bgcolor: 'primary.main',
+                                color: 'white',
+                                '&:hover': {
+                                    bgcolor: 'primary.dark',
+                                },
+                            },
+                        }}
+                    >
+                        <TestIcon />
+                        Test Mode
+                    </ToggleButton>
+                    <ToggleButton
+                        value="live"
+                        sx={{
+                            px: 3,
+                            gap: 1,
+                            fontWeight: 600,
+                            '&.Mui-selected': {
+                                bgcolor: 'error.main',
+                                color: 'white',
+                                '&:hover': {
+                                    bgcolor: 'error.dark',
+                                },
+                            },
+                        }}
+                    >
+                        <LiveIcon />
+                        Thực Chiến
+                    </ToggleButton>
+                </ToggleButtonGroup>
+            </Box>
+
+            <Container maxWidth="xl" sx={{ flex: 1, py: 3 }}>
+                {/* Test Mode - Manual Trade Recording */}
+                {appMode === 'test' && (
+                    <Grid container spacing={3}>
+                        {/* Left Column */}
+                        <Grid item xs={12} md={4} lg={3}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <SessionPanel />
+                                <FactorList />
+                                <TradeRecorder />
+                            </Box>
+                        </Grid>
+
+                        {/* Right Column - Results */}
+                        <Grid item xs={12} md={8} lg={9}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2,
+                                    borderRadius: 2,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    bgcolor: 'background.paper',
+                                }}
+                            >
+                                <Tabs
+                                    value={testTab}
+                                    onChange={(_, newValue) => setTestTab(newValue)}
+                                    sx={{
+                                        borderBottom: 1,
+                                        borderColor: 'divider',
+                                        '& .MuiTab-root': {
+                                            textTransform: 'none',
+                                            fontWeight: 500,
+                                            fontSize: '0.95rem',
+                                            minWidth: 100,
+                                        },
+                                    }}
+                                >
+                                    <Tab label="Thống kê" />
+                                    <Tab label="Biểu đồ" />
+                                    <Tab label="Trades" />
+                                </Tabs>
+
+                                <TabPanel value={testTab} index={0}>
+                                    <TestResults />
+                                </TabPanel>
+
+                                <TabPanel value={testTab} index={1}>
+                                    <TestCharts />
+                                </TabPanel>
+
+                                <TabPanel value={testTab} index={2}>
+                                    <TestTrades />
+                                </TabPanel>
+                            </Paper>
+                        </Grid>
+                    </Grid>
+                )}
+
+                {/* Live Mode - Model-based Trading */}
+                {appMode === 'live' && (
+                    <Grid container spacing={3}>
+                        {/* Left Column - Models & Trade Panel */}
+                        <Grid item xs={12} md={4} lg={3}>
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                                <ModelList />
+                                <TradePanel />
+                            </Box>
+                        </Grid>
+
+                        {/* Right Column - Trades & Stats */}
+                        <Grid item xs={12} md={8} lg={9}>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    p: 2,
+                                    borderRadius: 2,
+                                    border: '1px solid',
+                                    borderColor: 'divider',
+                                    bgcolor: 'background.paper',
+                                }}
+                            >
+                                <Tabs
+                                    value={liveTab}
+                                    onChange={(_, newValue) => setLiveTab(newValue)}
+                                    sx={{
+                                        borderBottom: 1,
+                                        borderColor: 'divider',
+                                        '& .MuiTab-root': {
+                                            textTransform: 'none',
+                                            fontWeight: 500,
+                                            fontSize: '0.95rem',
+                                            minWidth: 100,
+                                        },
+                                    }}
+                                >
+                                    <Tab label="Trades" />
+                                    <Tab label="Stats" />
+                                    <Tab label="History" />
+                                </Tabs>
+
+                                <TabPanel value={liveTab} index={0}>
+                                    <TradeList />
+                                </TabPanel>
+
+                                <TabPanel value={liveTab} index={1}>
+                                    <ModelStats />
+                                </TabPanel>
+
+                                <TabPanel value={liveTab} index={2}>
+                                    <LiveSessionHistory />
+                                </TabPanel>
+                            </Paper>
+                        </Grid>
+                    </Grid>
+                )}
+            </Container>
+
+            {/* Footer */}
+            <Box
+                component="footer"
+                sx={{
+                    py: 2,
+                    px: 3,
+                    textAlign: 'center',
+                    borderTop: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: 'background.paper',
+                    color: 'text.secondary',
+                    fontSize: '0.875rem',
+                }}
+            >
+                Trading Model Simulator © 2024
+            </Box>
+        </Box>
+    );
+}
