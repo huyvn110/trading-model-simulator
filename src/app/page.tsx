@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, Suspense, lazy, useMemo, useCallback } from 'react';
 import {
     Box,
     Container,
@@ -12,6 +12,7 @@ import {
     useTheme,
     ToggleButton,
     ToggleButtonGroup,
+    CircularProgress,
 } from '@mui/material';
 import {
     Analytics as TestIcon,
@@ -22,17 +23,25 @@ import { FactorList } from '@/components/FactorList/FactorList';
 import {
     SessionPanel,
     TradeRecorder,
-    TestResults,
-    TestTrades,
-    TestCharts,
 } from '@/components/TestMode';
-import {
-    ModelList,
-    TradePanel,
-    TradeList,
-    ModelStats,
-    SessionHistory as LiveSessionHistory,
-} from '@/components/LiveTrading';
+
+// Lazy load heavy components
+const TestResults = lazy(() => import('@/components/TestMode/TestResults'));
+const TestTrades = lazy(() => import('@/components/TestMode/TestTrades'));
+const TestCharts = lazy(() => import('@/components/TestMode/TestCharts'));
+const ModelList = lazy(() => import('@/components/LiveTrading/ModelList'));
+const TradePanel = lazy(() => import('@/components/LiveTrading/TradePanel'));
+const TradeList = lazy(() => import('@/components/LiveTrading/TradeList'));
+const ModelStats = lazy(() => import('@/components/LiveTrading/ModelStats'));
+const LiveSessionHistory = lazy(() => import('@/components/LiveTrading/SessionHistory'));
+
+// Loading component
+const LoadingFallback = () => (
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
+        <CircularProgress size={32} />
+    </Box>
+);
+
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -176,11 +185,15 @@ export default function Home() {
                                 </Tabs>
 
                                 <TabPanel value={testTab} index={0}>
-                                    <TestCharts />
+                                    <Suspense fallback={<LoadingFallback />}>
+                                        <TestCharts />
+                                    </Suspense>
                                 </TabPanel>
 
                                 <TabPanel value={testTab} index={1}>
-                                    <TestTrades />
+                                    <Suspense fallback={<LoadingFallback />}>
+                                        <TestTrades />
+                                    </Suspense>
                                 </TabPanel>
                             </Paper>
                         </Grid>
@@ -193,8 +206,12 @@ export default function Home() {
                         {/* Left Column - Models & Trade Panel */}
                         <Grid item xs={12} md={4} lg={3}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <ModelList />
-                                <TradePanel />
+                                <Suspense fallback={<LoadingFallback />}>
+                                    <ModelList />
+                                </Suspense>
+                                <Suspense fallback={<LoadingFallback />}>
+                                    <TradePanel />
+                                </Suspense>
                             </Box>
                         </Grid>
 
@@ -230,15 +247,21 @@ export default function Home() {
                                 </Tabs>
 
                                 <TabPanel value={liveTab} index={0}>
-                                    <TradeList />
+                                    <Suspense fallback={<LoadingFallback />}>
+                                        <TradeList />
+                                    </Suspense>
                                 </TabPanel>
 
                                 <TabPanel value={liveTab} index={1}>
-                                    <ModelStats />
+                                    <Suspense fallback={<LoadingFallback />}>
+                                        <ModelStats />
+                                    </Suspense>
                                 </TabPanel>
 
                                 <TabPanel value={liveTab} index={2}>
-                                    <LiveSessionHistory />
+                                    <Suspense fallback={<LoadingFallback />}>
+                                        <LiveSessionHistory />
+                                    </Suspense>
                                 </TabPanel>
                             </Paper>
                         </Grid>

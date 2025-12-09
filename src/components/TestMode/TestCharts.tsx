@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useCallback, memo } from 'react';
 import {
     Box,
     Paper,
@@ -21,19 +21,37 @@ import { useTestSessionStore } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
 import { BestModelSummary } from './BestModelSummary';
 
-export function TestCharts() {
+// Move theme outside component to prevent recreation on each render
+const darkTheme = createTheme({
+    palette: {
+        mode: 'dark',
+        background: { default: '#0f172a', paper: '#1e293b' },
+    },
+});
+
+// Section title style - constant
+const sectionTitleStyle = {
+    background: 'linear-gradient(to right, #60a5fa, #a78bfa)',
+    WebkitBackgroundClip: 'text',
+    WebkitTextFillColor: 'transparent',
+    fontWeight: 700,
+    fontSize: '1rem',
+};
+
+function TestChartsComponent() {
     const { currentSession, getCurrentSessionStats, getTotalStats } = useTestSessionStore();
     const { factors } = useFactorStore();
 
-    const getFactorName = (id: string) => {
+    // Memoize getFactorName
+    const getFactorName = useCallback((id: string) => {
         const factor = factors.find((f) => f.id === id);
         return factor?.name || 'Unknown';
-    };
+    }, [factors]);
 
-    const stats = getCurrentSessionStats(getFactorName);
-    const totals = getTotalStats();
+    // Memoize expensive calculations
+    const stats = useMemo(() => getCurrentSessionStats(getFactorName), [getCurrentSessionStats, getFactorName]);
     const measurementMode = currentSession?.measurementMode || 'RR';
-    const sortedStats = [...stats].sort((a, b) => b.winRate - a.winRate);
+    const sortedStats = useMemo(() => [...stats].sort((a, b) => b.winRate - a.winRate), [stats]);
 
     if (!currentSession || stats.length === 0) {
         return (
@@ -46,20 +64,7 @@ export function TestCharts() {
         );
     }
 
-    const darkTheme = createTheme({
-        palette: {
-            mode: 'dark',
-            background: { default: '#0f172a', paper: '#1e293b' },
-        },
-    });
 
-    const sectionTitleStyle = {
-        background: 'linear-gradient(to right, #60a5fa, #a78bfa)',
-        WebkitBackgroundClip: 'text',
-        WebkitTextFillColor: 'transparent',
-        fontWeight: 700,
-        fontSize: '1rem',
-    };
 
     return (
         <Stack spacing={3}>
@@ -376,4 +381,7 @@ export function TestCharts() {
     );
 }
 
+// Wrap with memo to prevent unnecessary re-renders
+export const TestCharts = memo(TestChartsComponent);
 export default TestCharts;
+

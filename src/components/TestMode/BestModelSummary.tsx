@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo, useCallback, memo } from 'react';
 import { Box, Paper, Typography, Stack, useTheme } from '@mui/material';
 import {
     EmojiEvents as TrophyIcon,
@@ -11,17 +11,19 @@ import {
 import { useTestSessionStore } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
 
-export function BestModelSummary() {
+function BestModelSummaryComponent() {
     const { currentSession, getCurrentSessionStats } = useTestSessionStore();
     const { factors } = useFactorStore();
 
-    const getFactorName = (id: string) => {
+    const getFactorName = useCallback((id: string) => {
         const factor = factors.find((f) => f.id === id);
         return factor?.name || 'Unknown';
-    };
+    }, [factors]);
 
-    const rawStats = getCurrentSessionStats(getFactorName);
-    const stats = [...rawStats].sort((a, b) => b.winRate - a.winRate);
+    const stats = useMemo(() => {
+        const rawStats = getCurrentSessionStats(getFactorName);
+        return [...rawStats].sort((a, b) => b.winRate - a.winRate);
+    }, [getCurrentSessionStats, getFactorName]);
     const measurementMode = currentSession?.measurementMode || 'RR';
 
     const formatValue = (value: number) => {
@@ -300,4 +302,7 @@ export function BestModelSummary() {
     );
 }
 
+// Wrap with memo to prevent unnecessary re-renders
+export const BestModelSummary = memo(BestModelSummaryComponent);
 export default BestModelSummary;
+
