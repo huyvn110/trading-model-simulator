@@ -37,6 +37,8 @@ export interface TestModelStats {
     losses: number;
     winRate: number;
     totalValue: number;
+    winValue: number;
+    lossValue: number;
 }
 
 interface TestSessionState {
@@ -92,6 +94,8 @@ const calculateModelStats = (
                 losses: 0,
                 winRate: 0,
                 totalValue: 0,
+                winValue: 0,
+                lossValue: 0,
             };
         }
 
@@ -99,9 +103,11 @@ const calculateModelStats = (
         stats.totalTrades++;
         if (trade.result === 'win') {
             stats.totalValue += trade.measurementValue;
+            stats.winValue += trade.measurementValue;
             stats.wins++;
         } else {
             stats.totalValue -= trade.measurementValue;
+            stats.lossValue += trade.measurementValue;
             stats.losses++;
         }
 

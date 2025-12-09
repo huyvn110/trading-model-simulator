@@ -272,60 +272,74 @@ export function TestCharts() {
                         </Stack>
                     </Box>
 
-                    {/* 3. RR Thực Tế */}
+                    {/* 3. RR Thực Tế (Avg Win / Avg Loss) */}
                     <Box>
                         <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            💰 {measurementMode} Thực Tế
+                            💰 RR Thực Tế
                         </Typography>
-                        <Stack spacing={1.5} sx={{ mt: 2 }}>
-                            {sortedStats.map((stat, index) => {
-                                const maxValue = Math.max(...stats.map(s => Math.abs(s.totalValue)));
-                                const percentage = maxValue > 0 ? (Math.abs(stat.totalValue) / maxValue) * 100 : 0;
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                            Công thức: RR = Trung bình Win / Trung bình Loss
+                        </Typography>
+                        <Stack spacing={1.5}>
+                            {(() => {
+                                // Calculate RR for each model
+                                const statsWithRR = sortedStats.map(stat => {
+                                    const avgWin = stat.wins > 0 ? stat.winValue / stat.wins : 0;
+                                    const avgLoss = stat.losses > 0 ? Math.abs(stat.lossValue) / stat.losses : 1;
+                                    const realRR = avgLoss > 0 ? avgWin / avgLoss : avgWin;
+                                    return { ...stat, realRR };
+                                }).sort((a, b) => b.realRR - a.realRR);
 
-                                return (
-                                    <Box key={stat.modelKey}>
-                                        <Stack direction="row" alignItems="center" spacing={2}>
-                                            <Typography
-                                                variant="caption"
-                                                sx={{
-                                                    minWidth: 25,
-                                                    fontWeight: 600,
-                                                    color: index === 0 ? 'success.main' : 'text.secondary',
-                                                }}
-                                            >
-                                                #{index + 1}
-                                            </Typography>
+                                const maxRR = Math.max(...statsWithRR.map(s => s.realRR));
 
-                                            <Typography
-                                                variant="body2"
-                                                sx={{ minWidth: 150, fontWeight: 500 }}
-                                                noWrap
-                                            >
-                                                {stat.factorNames.join(' + ')}
-                                            </Typography>
+                                return statsWithRR.map((stat, index) => {
+                                    const percentage = maxRR > 0 ? (stat.realRR / maxRR) * 100 : 0;
 
-                                            <Box sx={{ flex: 1, position: 'relative' }}>
-                                                <Box
+                                    return (
+                                        <Box key={stat.modelKey}>
+                                            <Stack direction="row" alignItems="center" spacing={2}>
+                                                <Typography
+                                                    variant="caption"
                                                     sx={{
-                                                        width: `${percentage}%`,
-                                                        height: 30,
-                                                        bgcolor: stat.totalValue >= 0 ? 'success.main' : 'error.main',
-                                                        borderRadius: 1,
-                                                        display: 'flex',
-                                                        alignItems: 'center',
-                                                        px: 1,
-                                                        minWidth: 40,
+                                                        minWidth: 25,
+                                                        fontWeight: 600,
+                                                        color: index === 0 ? 'success.main' : 'text.secondary',
                                                     }}
                                                 >
-                                                    <Typography variant="caption" color="white" fontWeight={600}>
-                                                        {stat.totalValue >= 0 ? '+' : ''}{stat.totalValue.toFixed(2)}
-                                                    </Typography>
+                                                    #{index + 1}
+                                                </Typography>
+
+                                                <Typography
+                                                    variant="body2"
+                                                    sx={{ minWidth: 150, fontWeight: 500 }}
+                                                    noWrap
+                                                >
+                                                    {stat.factorNames.join(' + ')}
+                                                </Typography>
+
+                                                <Box sx={{ flex: 1, position: 'relative' }}>
+                                                    <Box
+                                                        sx={{
+                                                            width: `${percentage}%`,
+                                                            height: 30,
+                                                            bgcolor: stat.realRR >= 1 ? 'success.main' : 'warning.main',
+                                                            borderRadius: 1,
+                                                            display: 'flex',
+                                                            alignItems: 'center',
+                                                            px: 1,
+                                                            minWidth: 50,
+                                                        }}
+                                                    >
+                                                        <Typography variant="caption" color="white" fontWeight={600}>
+                                                            {stat.realRR.toFixed(2)}R
+                                                        </Typography>
+                                                    </Box>
                                                 </Box>
-                                            </Box>
-                                        </Stack>
-                                    </Box>
-                                );
-                            })}
+                                            </Stack>
+                                        </Box>
+                                    );
+                                });
+                            })()}
                         </Stack>
                     </Box>
 
