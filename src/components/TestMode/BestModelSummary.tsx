@@ -117,10 +117,12 @@ export function BestModelSummary() {
                                     justifyContent: 'center',
                                     background: 'linear-gradient(135deg, rgba(255, 215, 0, 0.1) 0%, rgba(255, 215, 0, 0.05) 100%)',
                                     border: '1px solid rgba(255, 215, 0, 0.3)',
-                                    boxShadow: '0 4px 15px rgba(255, 215, 0, 0.1)',
+                                    boxShadow: '0 4px 15px rgba(255, 215, 0, 0.15), inset 0 1px 0 rgba(255,215,0,0.2)',
                                 }}
                             >
-                                <TrophyIcon sx={{ fontSize: 32, color: '#FFD700', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }} />
+                                <Typography sx={{ fontSize: 36, filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.3))' }}>
+                                    🏆
+                                </Typography>
                             </Box>
 
                             <Box>
@@ -184,24 +186,24 @@ export function BestModelSummary() {
                                 flex: 1,
                                 p: 2.5,
                                 borderRadius: 3,
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.15) 0%, rgba(16, 185, 129, 0.05) 100%)',
+                                border: '1px solid rgba(16, 185, 129, 0.2)',
                                 textAlign: 'center',
                                 transition: 'all 0.3s ease',
                                 '&:hover': {
-                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.2) 0%, rgba(16, 185, 129, 0.1) 100%)',
                                     transform: 'translateY(-2px)',
-                                    boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
+                                    boxShadow: '0 8px 25px rgba(16, 185, 129, 0.15)',
                                 },
                             }}
                         >
                             <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} sx={{ mb: 1 }}>
-                                <TrendingIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                <Typography sx={{ fontSize: 16 }}>📈</Typography>
                                 <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, letterSpacing: 0.5 }}>
                                     WIN RATE
                                 </Typography>
                             </Stack>
-                            <Typography variant="h4" sx={{ fontWeight: 700, color: '#f1f5f9' }}>
+                            <Typography variant="h4" sx={{ fontWeight: 700, color: '#10b981' }}>
                                 {bestModel.winRate.toFixed(1)}%
                             </Typography>
                         </Box>
@@ -212,19 +214,19 @@ export function BestModelSummary() {
                                 flex: 1,
                                 p: 2.5,
                                 borderRadius: 3,
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(59, 130, 246, 0.05) 100%)',
+                                border: '1px solid rgba(59, 130, 246, 0.2)',
                                 textAlign: 'center',
                                 transition: 'all 0.3s ease',
                                 '&:hover': {
-                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    background: 'linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(59, 130, 246, 0.1) 100%)',
                                     transform: 'translateY(-2px)',
-                                    boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
+                                    boxShadow: '0 8px 25px rgba(59, 130, 246, 0.15)',
                                 },
                             }}
                         >
                             <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} sx={{ mb: 1 }}>
-                                <ChartIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                <Typography sx={{ fontSize: 16 }}>💰</Typography>
                                 <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, letterSpacing: 0.5 }}>
                                     {measurementMode}
                                 </Typography>
@@ -240,24 +242,24 @@ export function BestModelSummary() {
                                 flex: 1,
                                 p: 2.5,
                                 borderRadius: 3,
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.15) 0%, rgba(168, 85, 247, 0.05) 100%)',
+                                border: '1px solid rgba(168, 85, 247, 0.2)',
                                 textAlign: 'center',
                                 transition: 'all 0.3s ease',
                                 '&:hover': {
-                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    background: 'linear-gradient(135deg, rgba(168, 85, 247, 0.2) 0%, rgba(168, 85, 247, 0.1) 100%)',
                                     transform: 'translateY(-2px)',
-                                    boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
+                                    boxShadow: '0 8px 25px rgba(168, 85, 247, 0.15)',
                                 },
                             }}
                         >
                             <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} sx={{ mb: 1 }}>
-                                <TimelineIcon sx={{ fontSize: 18, color: '#94a3b8' }} />
+                                <Typography sx={{ fontSize: 16 }}>📊</Typography>
                                 <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, letterSpacing: 0.5 }}>
                                     TRADES
                                 </Typography>
                             </Stack>
-                            <Typography variant="h4" sx={{ fontWeight: 700, color: '#f1f5f9' }}>
+                            <Typography variant="h4" sx={{ fontWeight: 700, color: '#c4b5fd' }}>
                                 {bestModel.totalTrades}
                             </Typography>
                         </Box>
@@ -268,20 +270,23 @@ export function BestModelSummary() {
                                 flex: 1,
                                 p: 2.5,
                                 borderRadius: 3,
-                                background: 'rgba(255, 255, 255, 0.03)',
-                                border: '1px solid rgba(255, 255, 255, 0.05)',
+                                background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.15) 0%, rgba(251, 191, 36, 0.05) 100%)',
+                                border: '1px solid rgba(251, 191, 36, 0.2)',
                                 textAlign: 'center',
                                 transition: 'all 0.3s ease',
                                 '&:hover': {
-                                    background: 'rgba(255, 255, 255, 0.05)',
+                                    background: 'linear-gradient(135deg, rgba(251, 191, 36, 0.2) 0%, rgba(251, 191, 36, 0.1) 100%)',
                                     transform: 'translateY(-2px)',
-                                    boxShadow: '0 5px 15px rgba(0,0,0,0.2)',
+                                    boxShadow: '0 8px 25px rgba(251, 191, 36, 0.15)',
                                 },
                             }}
                         >
-                            <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, display: 'block', mb: 1, letterSpacing: 0.5 }}>
-                                W / L
-                            </Typography>
+                            <Stack direction="row" alignItems="center" justifyContent="center" spacing={0.5} sx={{ mb: 1 }}>
+                                <Typography sx={{ fontSize: 16 }}>⚖️</Typography>
+                                <Typography variant="caption" sx={{ color: '#94a3b8', fontWeight: 600, letterSpacing: 0.5 }}>
+                                    W / L
+                                </Typography>
+                            </Stack>
                             <Typography variant="h4" sx={{ fontWeight: 700 }}>
                                 <Box component="span" sx={{ color: '#4ade80' }}>{bestModel.wins}</Box>
                                 <Box component="span" sx={{ color: '#64748b', mx: 1, fontSize: '0.8em' }}>/</Box>
