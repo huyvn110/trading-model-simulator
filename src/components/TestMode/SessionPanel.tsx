@@ -87,13 +87,9 @@ export function SessionPanel() {
     };
 
     return (
-        <Paper
-            elevation={0}
+        <Box
             sx={{
                 p: 2.5,
-                borderRadius: 2,
-                border: '1px solid',
-                borderColor: 'divider',
             }}
         >
             {/* Current Session */}
@@ -293,7 +289,7 @@ export function SessionPanel() {
                     <Button onClick={handleRenameSubmit} variant="contained">Lưu</Button>
                 </DialogActions>
             </Dialog>
-        </Paper>
+        </Box>
     );
 }
 

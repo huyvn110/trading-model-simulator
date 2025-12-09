@@ -13,10 +13,16 @@ import {
     ToggleButton,
     ToggleButtonGroup,
     CircularProgress,
+    Collapse,
+    IconButton,
+    Typography,
+    Stack,
 } from '@mui/material';
 import {
     Analytics as TestIcon,
     LocalFireDepartment as LiveIcon,
+    ExpandMore as ExpandMoreIcon,
+    ExpandLess as ExpandLessIcon,
 } from '@mui/icons-material';
 import { Header } from '@/components/Header';
 import { FactorList } from '@/components/FactorList/FactorList';
@@ -73,6 +79,11 @@ export default function Home() {
     const [appMode, setAppMode] = useState<AppMode>('test');
     const [testTab, setTestTab] = useState(0);
     const [liveTab, setLiveTab] = useState(0);
+
+    // Collapse states for left panels
+    const [sessionOpen, setSessionOpen] = useState(true);
+    const [factorOpen, setFactorOpen] = useState(true);
+    const [recorderOpen, setRecorderOpen] = useState(true);
 
     return (
         <Box
@@ -147,10 +158,57 @@ export default function Home() {
                     <Grid container spacing={3}>
                         {/* Left Column */}
                         <Grid item xs={12} md={4} lg={3}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <SessionPanel />
-                                <FactorList />
-                                <TradeRecorder />
+                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
+                                {/* Session Panel - Collapsible */}
+                                <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+                                    <Stack
+                                        direction="row"
+                                        alignItems="center"
+                                        justifyContent="space-between"
+                                        sx={{
+                                            px: 2,
+                                            py: 1,
+                                            bgcolor: 'action.hover',
+                                            cursor: 'pointer',
+                                            '&:hover': { bgcolor: 'action.selected' },
+                                        }}
+                                        onClick={() => setSessionOpen(!sessionOpen)}
+                                    >
+                                        <Typography variant="subtitle2" fontWeight={600}>📋 Session</Typography>
+                                        <IconButton size="small">
+                                            {sessionOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                        </IconButton>
+                                    </Stack>
+                                    <Collapse in={sessionOpen}>
+                                        <SessionPanel />
+                                    </Collapse>
+                                </Paper>
+
+                                {/* Factors & Trade Recorder - Combined */}
+                                <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+                                    <Stack
+                                        direction="row"
+                                        alignItems="center"
+                                        justifyContent="space-between"
+                                        sx={{
+                                            px: 2,
+                                            py: 1,
+                                            bgcolor: 'action.hover',
+                                            cursor: 'pointer',
+                                            '&:hover': { bgcolor: 'action.selected' },
+                                        }}
+                                        onClick={() => setRecorderOpen(!recorderOpen)}
+                                    >
+                                        <Typography variant="subtitle2" fontWeight={600}>✍️ Ghi Trade</Typography>
+                                        <IconButton size="small">
+                                            {recorderOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                        </IconButton>
+                                    </Stack>
+                                    <Collapse in={recorderOpen}>
+                                        <FactorList />
+                                        <TradeRecorder />
+                                    </Collapse>
+                                </Paper>
                             </Box>
                         </Grid>
 

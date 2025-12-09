@@ -215,13 +215,9 @@ export function FactorList() {
     const someSelected = selectedCount > 0 && selectedCount < factors.length;
 
     return (
-        <Paper
-            elevation={0}
+        <Box
             sx={{
                 p: 2.5,
-                borderRadius: 2,
-                border: '1px solid',
-                borderColor: 'divider',
             }}
         >
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -315,7 +311,7 @@ export function FactorList() {
                     Add
                 </Button>
             </Box>
-        </Paper>
+        </Box>
     );
 }
 

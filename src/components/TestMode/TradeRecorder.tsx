@@ -148,13 +148,9 @@ export function TradeRecorder() {
 
     if (!currentSession) {
         return (
-            <Paper
-                elevation={0}
+            <Box
                 sx={{
                     p: 2.5,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
                 }}
             >
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
@@ -163,19 +159,15 @@ export function TradeRecorder() {
                 <Alert severity="info">
                     Tạo hoặc chọn phiên test để bắt đầu ghi trade
                 </Alert>
-            </Paper>
+            </Box>
         );
     }
 
     return (
         <>
-            <Paper
-                elevation={0}
+            <Box
                 sx={{
                     p: 2.5,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
                 }}
             >
                 <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
@@ -375,7 +367,7 @@ export function TradeRecorder() {
                         </Typography>
                     </Box>
                 </Stack>
-            </Paper>
+            </Box>
 
             {/* Zoom Dialog */}
             <Dialog
