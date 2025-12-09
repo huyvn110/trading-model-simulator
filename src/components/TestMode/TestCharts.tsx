@@ -137,12 +137,24 @@ export function TestCharts() {
                         </Stack>
 
                         <Stack spacing={4}>
+                            {/* Hiệu Quả Giao Dịch */}
                             <Box>
-                                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                                    <Typography sx={{ fontSize: 18 }}>💰</Typography>
+                                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>
+                                    <Box sx={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 1.5,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: 'linear-gradient(135deg, rgba(74, 222, 128, 0.15) 0%, rgba(34, 197, 94, 0.1) 100%)',
+                                        border: '1px solid rgba(74, 222, 128, 0.2)',
+                                    }}>
+                                        <Typography sx={{ fontSize: 16 }}>💰</Typography>
+                                    </Box>
                                     <Typography sx={sectionTitleStyle}>Hiệu Quả Giao Dịch</Typography>
                                 </Stack>
-                                <Stack spacing={1}>
+                                <Stack spacing={1.5}>
                                     {(() => {
                                         const statsWithRR = sortedStats.map(stat => {
                                             const avgWin = stat.wins > 0 ? stat.winValue / stat.wins : 0;
@@ -153,26 +165,83 @@ export function TestCharts() {
                                         const maxRR = Math.max(...statsWithRR.map(s => s.realRR));
 
                                         return statsWithRR.map((stat, index) => (
-                                            <Stack key={stat.modelKey} direction="row" alignItems="center" spacing={2} sx={{ p: 1.5, borderRadius: 1.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
-                                                <Typography sx={{ minWidth: 28, fontWeight: 700, color: index === 0 ? '#4ade80' : '#64748b', fontSize: '0.85rem' }}>#{index + 1}</Typography>
-                                                <Typography sx={{ minWidth: 140, fontWeight: 500, color: '#e2e8f0', fontSize: '0.9rem' }} noWrap>{stat.factorNames.join(' + ')}</Typography>
-                                                <Box sx={{ flex: 1 }}>
-                                                    <Box sx={{ width: `${maxRR > 0 ? (stat.realRR / maxRR) * 100 : 0}%`, height: 20, bgcolor: stat.realRR >= 1 ? '#4ade80' : '#f87171', borderRadius: 0.5, minWidth: 36, display: 'flex', alignItems: 'center', px: 1 }}>
-                                                        <Typography sx={{ color: 'white', fontWeight: 600, fontSize: '0.7rem' }}>{stat.realRR.toFixed(1)}R</Typography>
-                                                    </Box>
+                                            <Box key={stat.modelKey} sx={{
+                                                p: 2,
+                                                borderRadius: 2,
+                                                bgcolor: 'rgba(255, 255, 255, 0.02)',
+                                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                                transition: 'all 0.2s ease',
+                                                '&:hover': {
+                                                    bgcolor: 'rgba(255, 255, 255, 0.04)',
+                                                    borderColor: 'rgba(99, 102, 241, 0.2)',
+                                                },
+                                            }}>
+                                                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                                                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                                                        <Typography sx={{
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: 700,
+                                                            color: index === 0 ? '#4ade80' : '#64748b',
+                                                            bgcolor: index === 0 ? 'rgba(74, 222, 128, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+                                                            px: 1,
+                                                            py: 0.25,
+                                                            borderRadius: 1,
+                                                        }}>
+                                                            #{index + 1}
+                                                        </Typography>
+                                                        <Typography sx={{ fontWeight: 500, color: '#cbd5e1', fontSize: '0.9rem', letterSpacing: '0.01em' }}>
+                                                            {stat.factorNames.join(' + ')}
+                                                        </Typography>
+                                                    </Stack>
+                                                    <Typography sx={{
+                                                        fontWeight: 700,
+                                                        fontSize: '0.95rem',
+                                                        color: stat.realRR >= 1 ? '#4ade80' : '#fb7185',
+                                                    }}>
+                                                        {stat.realRR.toFixed(2)}R
+                                                    </Typography>
+                                                </Stack>
+                                                <Box sx={{
+                                                    width: '100%',
+                                                    height: 6,
+                                                    bgcolor: 'rgba(255, 255, 255, 0.06)',
+                                                    borderRadius: 3,
+                                                    overflow: 'hidden',
+                                                }}>
+                                                    <Box sx={{
+                                                        width: `${maxRR > 0 ? (stat.realRR / maxRR) * 100 : 0}%`,
+                                                        height: '100%',
+                                                        background: stat.realRR >= 1
+                                                            ? 'linear-gradient(90deg, #22c55e 0%, #4ade80 100%)'
+                                                            : 'linear-gradient(90deg, #e11d48 0%, #fb7185 100%)',
+                                                        borderRadius: 3,
+                                                        transition: 'width 0.5s ease',
+                                                    }} />
                                                 </Box>
-                                            </Stack>
+                                            </Box>
                                         ));
                                     })()}
                                 </Stack>
                             </Box>
 
+                            {/* Kỳ Vọng */}
                             <Box>
-                                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                                    <Typography sx={{ fontSize: 18 }}>🎯</Typography>
+                                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2.5 }}>
+                                    <Box sx={{
+                                        width: 32,
+                                        height: 32,
+                                        borderRadius: 1.5,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        background: 'linear-gradient(135deg, rgba(96, 165, 250, 0.15) 0%, rgba(59, 130, 246, 0.1) 100%)',
+                                        border: '1px solid rgba(96, 165, 250, 0.2)',
+                                    }}>
+                                        <Typography sx={{ fontSize: 16 }}>🎯</Typography>
+                                    </Box>
                                     <Typography sx={sectionTitleStyle}>Kỳ Vọng</Typography>
                                 </Stack>
-                                <Stack spacing={1}>
+                                <Stack spacing={1.5}>
                                     {sortedStats.map((stat, index) => {
                                         const winRate = stat.winRate / 100;
                                         const avgRR = stat.wins > 0 ? stat.totalValue / stat.wins : 0;
@@ -183,15 +252,60 @@ export function TestCharts() {
                                             return Math.abs((wr * Math.abs(ar)) - (1 - wr));
                                         }));
                                         return (
-                                            <Stack key={stat.modelKey} direction="row" alignItems="center" spacing={2} sx={{ p: 1.5, borderRadius: 1.5, '&:hover': { bgcolor: 'rgba(255,255,255,0.03)' } }}>
-                                                <Typography sx={{ minWidth: 28, fontWeight: 700, color: index === 0 ? '#4ade80' : '#64748b', fontSize: '0.85rem' }}>#{index + 1}</Typography>
-                                                <Typography sx={{ minWidth: 140, fontWeight: 500, color: '#e2e8f0', fontSize: '0.9rem' }} noWrap>{stat.factorNames.join(' + ')}</Typography>
-                                                <Box sx={{ flex: 1 }}>
-                                                    <Box sx={{ width: `${maxExp > 0 ? (Math.abs(expectancy) / maxExp) * 100 : 0}%`, height: 20, bgcolor: expectancy >= 0 ? '#60a5fa' : '#f87171', borderRadius: 0.5, minWidth: 36, display: 'flex', alignItems: 'center', px: 1 }}>
-                                                        <Typography sx={{ color: 'white', fontWeight: 600, fontSize: '0.7rem' }}>{expectancy >= 0 ? '+' : ''}{expectancy.toFixed(1)}</Typography>
-                                                    </Box>
+                                            <Box key={stat.modelKey} sx={{
+                                                p: 2,
+                                                borderRadius: 2,
+                                                bgcolor: 'rgba(255, 255, 255, 0.02)',
+                                                border: '1px solid rgba(255, 255, 255, 0.06)',
+                                                transition: 'all 0.2s ease',
+                                                '&:hover': {
+                                                    bgcolor: 'rgba(255, 255, 255, 0.04)',
+                                                    borderColor: 'rgba(99, 102, 241, 0.2)',
+                                                },
+                                            }}>
+                                                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
+                                                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                                                        <Typography sx={{
+                                                            fontSize: '0.75rem',
+                                                            fontWeight: 700,
+                                                            color: index === 0 ? '#60a5fa' : '#64748b',
+                                                            bgcolor: index === 0 ? 'rgba(96, 165, 250, 0.1)' : 'rgba(100, 116, 139, 0.1)',
+                                                            px: 1,
+                                                            py: 0.25,
+                                                            borderRadius: 1,
+                                                        }}>
+                                                            #{index + 1}
+                                                        </Typography>
+                                                        <Typography sx={{ fontWeight: 500, color: '#cbd5e1', fontSize: '0.9rem', letterSpacing: '0.01em' }}>
+                                                            {stat.factorNames.join(' + ')}
+                                                        </Typography>
+                                                    </Stack>
+                                                    <Typography sx={{
+                                                        fontWeight: 700,
+                                                        fontSize: '0.95rem',
+                                                        color: expectancy >= 0 ? '#60a5fa' : '#fb7185',
+                                                    }}>
+                                                        {expectancy >= 0 ? '+' : ''}{expectancy.toFixed(2)}
+                                                    </Typography>
+                                                </Stack>
+                                                <Box sx={{
+                                                    width: '100%',
+                                                    height: 6,
+                                                    bgcolor: 'rgba(255, 255, 255, 0.06)',
+                                                    borderRadius: 3,
+                                                    overflow: 'hidden',
+                                                }}>
+                                                    <Box sx={{
+                                                        width: `${maxExp > 0 ? (Math.abs(expectancy) / maxExp) * 100 : 0}%`,
+                                                        height: '100%',
+                                                        background: expectancy >= 0
+                                                            ? 'linear-gradient(90deg, #3b82f6 0%, #60a5fa 100%)'
+                                                            : 'linear-gradient(90deg, #e11d48 0%, #fb7185 100%)',
+                                                        borderRadius: 3,
+                                                        transition: 'width 0.5s ease',
+                                                    }} />
                                                 </Box>
-                                            </Stack>
+                                            </Box>
                                         );
                                     })}
                                 </Stack>
