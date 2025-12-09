@@ -172,19 +172,14 @@ export default function Home() {
                                     }}
                                 >
                                     <Tab label="Thống kê" />
-                                    <Tab label="Biểu đồ" />
                                     <Tab label="Trades" />
                                 </Tabs>
 
                                 <TabPanel value={testTab} index={0}>
-                                    <TestResults />
-                                </TabPanel>
-
-                                <TabPanel value={testTab} index={1}>
                                     <TestCharts />
                                 </TabPanel>
 
-                                <TabPanel value={testTab} index={2}>
+                                <TabPanel value={testTab} index={1}>
                                     <TestTrades />
                                 </TabPanel>
                             </Paper>

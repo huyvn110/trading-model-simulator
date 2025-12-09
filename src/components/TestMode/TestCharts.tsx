@@ -8,9 +8,16 @@ import {
     Stack,
     Chip,
     LinearProgress,
+    Table,
+    TableBody,
+    TableCell,
+    TableContainer,
+    TableHead,
+    TableRow,
 } from '@mui/material';
 import { useTestSessionStore } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
+import { BestModelSummary } from './BestModelSummary';
 
 export function TestCharts() {
     const { currentSession, getCurrentSessionStats, getTotalStats } = useTestSessionStore();
@@ -41,11 +48,11 @@ export function TestCharts() {
                 }}
             >
                 <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
-                    Biểu đồ
+                    Thống kê
                 </Typography>
                 <Box sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
                     <Typography variant="body1">
-                        Chưa có dữ liệu. Ghi trade để xem biểu đồ.
+                        Chưa có dữ liệu. Ghi trade để xem thống kê.
                     </Typography>
                 </Box>
             </Paper>
@@ -53,7 +60,10 @@ export function TestCharts() {
     }
 
     return (
-        <>
+        <Stack spacing={3}>
+            {/* Best Model Summary - Đặt lên đầu */}
+            <BestModelSummary />
+
             <Paper
                 elevation={0}
                 sx={{
@@ -64,7 +74,7 @@ export function TestCharts() {
                 }}
             >
                 <Typography variant="h5" sx={{ fontWeight: 600, mb: 3 }}>
-                    Phân Tích Biểu Đồ
+                    Thống Kê Chi Tiết
                 </Typography>
 
                 <Stack spacing={6}>
@@ -262,10 +272,10 @@ export function TestCharts() {
                         </Stack>
                     </Box>
 
-                    {/* 3. Giá trị RR theo Model */}
+                    {/* 3. RR Thực Tế */}
                     <Box>
                         <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            💰 Giá trị {measurementMode} theo Model
+                            💰 {measurementMode} Thực Tế
                         </Typography>
                         <Stack spacing={1.5} sx={{ mt: 2 }}>
                             {sortedStats.map((stat, index) => {
@@ -319,101 +329,179 @@ export function TestCharts() {
                         </Stack>
                     </Box>
 
-                    {/* 4. Xếp hạng Win Rate */}
+                    {/* 4. Kỳ Vọng (Expectancy) */}
                     <Box>
                         <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            🏆 Xếp hạng Win Rate
+                            🎯 Kỳ Vọng (Expectancy)
                         </Typography>
-                        <Stack spacing={1} sx={{ mt: 2 }}>
-                            {sortedStats.map((stat, index) => (
-                                <Box
-                                    key={stat.modelKey}
-                                    sx={{
-                                        p: 2,
-                                        borderRadius: 1,
-                                        bgcolor: index === 0 ? 'success.50' : 'grey.50',
-                                        border: '1px solid',
-                                        borderColor: index === 0 ? 'success.main' : 'grey.200',
-                                    }}
-                                >
-                                    <Stack spacing={1}>
+                        <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
+                            Công thức: Kỳ Vọng = (WinRate × Avg RR) - LossRate
+                        </Typography>
+                        <Stack spacing={1.5}>
+                            {sortedStats.map((stat, index) => {
+                                const winRate = stat.winRate / 100;
+                                const lossRate = 1 - winRate;
+                                const avgRR = stat.totalTrades > 0 ? stat.totalValue / stat.wins : 0;
+                                const expectancy = (winRate * Math.abs(avgRR)) - lossRate;
+                                const maxExpectancy = Math.max(...sortedStats.map(s => {
+                                    const wr = s.winRate / 100;
+                                    const lr = 1 - wr;
+                                    const ar = s.totalTrades > 0 && s.wins > 0 ? s.totalValue / s.wins : 0;
+                                    return Math.abs((wr * Math.abs(ar)) - lr);
+                                }));
+                                const percentage = maxExpectancy > 0 ? (Math.abs(expectancy) / maxExpectancy) * 100 : 0;
+
+                                return (
+                                    <Box key={stat.modelKey}>
                                         <Stack direction="row" alignItems="center" spacing={2}>
                                             <Typography
-                                                variant="h6"
+                                                variant="caption"
                                                 sx={{
-                                                    minWidth: 35,
-                                                    fontWeight: 700,
+                                                    minWidth: 25,
+                                                    fontWeight: 600,
                                                     color: index === 0 ? 'success.main' : 'text.secondary',
                                                 }}
                                             >
                                                 #{index + 1}
                                             </Typography>
 
-                                            <Chip
-                                                label={`${stat.factorIds?.length || 0}F`}
-                                                size="small"
-                                                color={index === 0 ? 'success' : 'default'}
-                                                sx={{ fontWeight: 600, minWidth: 45 }}
-                                            />
-
-                                            <Typography variant="body1" fontWeight={500} sx={{ flex: 1 }}>
+                                            <Typography
+                                                variant="body2"
+                                                sx={{ minWidth: 150, fontWeight: 500 }}
+                                                noWrap
+                                            >
                                                 {stat.factorNames.join(' + ')}
                                             </Typography>
 
-                                            <Typography variant="caption" color="text.secondary">
-                                                {stat.totalTrades} trades
-                                            </Typography>
-                                        </Stack>
-
-                                        <Stack direction="row" spacing={3} alignItems="center">
-                                            <Box sx={{ flex: 1 }}>
-                                                <Stack direction="row" spacing={1} alignItems="center" sx={{ mb: 0.5 }}>
-                                                    <Typography variant="body2" color="text.secondary">
-                                                        Win Rate
-                                                    </Typography>
-                                                    <Typography
-                                                        variant="body2"
-                                                        fontWeight={600}
-                                                        color={stat.winRate >= 50 ? 'success.main' : 'error.main'}
-                                                    >
-                                                        {stat.winRate.toFixed(1)}%
-                                                    </Typography>
-                                                </Stack>
-                                                <LinearProgress
-                                                    variant="determinate"
-                                                    value={stat.winRate}
+                                            <Box sx={{ flex: 1, position: 'relative' }}>
+                                                <Box
                                                     sx={{
-                                                        height: 8,
+                                                        width: `${percentage}%`,
+                                                        height: 30,
+                                                        bgcolor: expectancy >= 0 ? 'info.main' : 'warning.main',
                                                         borderRadius: 1,
-                                                        bgcolor: 'grey.200',
-                                                        '& .MuiLinearProgress-bar': {
-                                                            bgcolor: stat.winRate >= 50 ? 'success.main' : 'error.main',
-                                                        },
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        px: 1,
+                                                        minWidth: 50,
                                                     }}
-                                                />
+                                                >
+                                                    <Typography variant="caption" color="white" fontWeight={600}>
+                                                        {expectancy >= 0 ? '+' : ''}{expectancy.toFixed(3)}
+                                                    </Typography>
+                                                </Box>
                                             </Box>
+                                        </Stack>
+                                    </Box>
+                                );
+                            })}
+                        </Stack>
+                    </Box>
 
-                                            <Box sx={{ minWidth: 100, textAlign: 'right' }}>
-                                                <Typography variant="caption" color="text.secondary" display="block">
-                                                    {measurementMode}
-                                                </Typography>
+                    {/* 5. Bảng Xếp Hạng Model (Table) */}
+                    <Box>
+                        <Typography variant="subtitle1" fontWeight={600} gutterBottom>
+                            📋 Bảng Xếp Hạng Model
+                        </Typography>
+                        <TableContainer sx={{ mt: 2 }}>
+                            <Table size="small">
+                                <TableHead>
+                                    <TableRow>
+                                        <TableCell sx={{ fontWeight: 600, width: 40 }}>#</TableCell>
+                                        <TableCell sx={{ fontWeight: 600 }}>Model</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 600 }}>Trades</TableCell>
+                                        <TableCell align="center" sx={{ fontWeight: 600 }}>{measurementMode}</TableCell>
+                                        <TableCell align="right" sx={{ fontWeight: 600, minWidth: 150 }}>Win Rate</TableCell>
+                                    </TableRow>
+                                </TableHead>
+                                <TableBody>
+                                    {sortedStats.map((stat, index) => (
+                                        <TableRow
+                                            key={stat.modelKey}
+                                            sx={{
+                                                bgcolor: index === 0 ? 'primary.50' : 'transparent',
+                                            }}
+                                        >
+                                            <TableCell>
                                                 <Typography
-                                                    variant="h6"
+                                                    variant="body2"
+                                                    fontWeight={600}
+                                                    color={index === 0 ? 'primary.main' : 'text.secondary'}
+                                                >
+                                                    #{index + 1}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell>
+                                                <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                                    {stat.factorNames.map((name) => (
+                                                        <Chip
+                                                            key={name}
+                                                            label={name}
+                                                            size="small"
+                                                            sx={{
+                                                                fontSize: '0.75rem',
+                                                                height: 24,
+                                                                bgcolor: index === 0 ? 'primary.main' : 'primary.light',
+                                                                color: 'white',
+                                                            }}
+                                                        />
+                                                    ))}
+                                                </Stack>
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <Typography variant="body2" fontWeight={500}>
+                                                    {stat.totalTrades}
+                                                </Typography>
+                                            </TableCell>
+                                            <TableCell align="center">
+                                                <Typography
+                                                    variant="body2"
                                                     fontWeight={600}
                                                     color={stat.totalValue >= 0 ? 'success.main' : 'error.main'}
                                                 >
                                                     {stat.totalValue >= 0 ? '+' : ''}{stat.totalValue.toFixed(2)}
                                                 </Typography>
-                                            </Box>
-                                        </Stack>
-                                    </Stack>
-                                </Box>
-                            ))}
-                        </Stack>
+                                            </TableCell>
+                                            <TableCell align="right">
+                                                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                    <Box sx={{ flex: 1 }}>
+                                                        <LinearProgress
+                                                            variant="determinate"
+                                                            value={stat.winRate}
+                                                            sx={{
+                                                                height: 8,
+                                                                borderRadius: 4,
+                                                                bgcolor: 'grey.200',
+                                                                '& .MuiLinearProgress-bar': {
+                                                                    borderRadius: 4,
+                                                                    bgcolor:
+                                                                        stat.winRate >= 60
+                                                                            ? 'success.main'
+                                                                            : stat.winRate >= 40
+                                                                                ? 'warning.main'
+                                                                                : 'error.main',
+                                                                },
+                                                            }}
+                                                        />
+                                                    </Box>
+                                                    <Typography
+                                                        variant="body2"
+                                                        fontWeight={600}
+                                                        sx={{ minWidth: 50, textAlign: 'right' }}
+                                                    >
+                                                        {stat.winRate.toFixed(1)}%
+                                                    </Typography>
+                                                </Box>
+                                            </TableCell>
+                                        </TableRow>
+                                    ))}
+                                </TableBody>
+                            </Table>
+                        </TableContainer>
                     </Box>
                 </Stack>
             </Paper>
-        </>
+        </Stack>
     );
 }
 
