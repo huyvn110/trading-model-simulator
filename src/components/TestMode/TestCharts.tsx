@@ -53,7 +53,6 @@ export function TestCharts() {
         },
     });
 
-    // Section title style - gradient xanh thay vì vàng
     const sectionTitleStyle = {
         background: 'linear-gradient(to right, #60a5fa, #a78bfa)',
         WebkitBackgroundClip: 'text',
@@ -86,13 +85,11 @@ export function TestCharts() {
                             borderRadius: 4,
                             margin: '-1px',
                             zIndex: -1,
-                            // Gradient xanh tím thay vì vàng
                             background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(15, 23, 42, 0.5) 50%, rgba(139, 92, 246, 0.2) 100%)',
                         },
                         boxShadow: '0 20px 50px -10px rgba(15, 23, 42, 0.7)',
                     }}
                 >
-                    {/* Inner Content */}
                     <Box sx={{
                         bgcolor: '#0f172a',
                         background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%)',
@@ -100,7 +97,6 @@ export function TestCharts() {
                         p: 3,
                         backdropFilter: 'blur(20px)',
                     }}>
-                        {/* Decorative Glow - xanh thay vì vàng */}
                         <Box sx={{
                             position: 'absolute',
                             top: -100,
@@ -112,7 +108,6 @@ export function TestCharts() {
                             pointerEvents: 'none',
                         }} />
 
-                        {/* Header */}
                         <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
                             <Box sx={{
                                 width: 48,
@@ -142,77 +137,6 @@ export function TestCharts() {
                         </Stack>
 
                         <Stack spacing={4}>
-                            {/* 1. So sánh theo Số Factor */}
-                            <Box>
-                                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                                    <Typography sx={{ fontSize: 18 }}>📈</Typography>
-                                    <Typography sx={sectionTitleStyle}>So sánh theo Số Factor</Typography>
-                                </Stack>
-                                <Stack spacing={1.5}>
-                                    {(() => {
-                                        const grouped = stats.reduce((acc, stat) => {
-                                            const count = stat.factorIds?.length || 0;
-                                            if (!acc[count]) acc[count] = { models: [], totalWins: 0, totalTrades: 0, totalValue: 0 };
-                                            acc[count].models.push(stat);
-                                            acc[count].totalWins += stat.wins;
-                                            acc[count].totalTrades += stat.totalTrades;
-                                            acc[count].totalValue += stat.totalValue;
-                                            return acc;
-                                        }, {} as Record<number, { models: typeof stats; totalWins: number; totalTrades: number; totalValue: number }>);
-
-                                        return Object.entries(grouped).sort(([a], [b]) => Number(a) - Number(b)).map(([count, data]) => {
-                                            const avgWinRate = data.totalTrades > 0 ? (data.totalWins / data.totalTrades) * 100 : 0;
-                                            const avgValue = data.totalTrades > 0 ? data.totalValue / data.totalTrades : 0;
-                                            return (
-                                                <Box key={count} sx={{
-                                                    p: 2,
-                                                    borderRadius: 2,
-                                                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.05) 100%)',
-                                                    border: '1px solid rgba(99, 102, 241, 0.2)',
-                                                }}>
-                                                    <Stack direction="row" alignItems="center" spacing={3}>
-                                                        <Box sx={{
-                                                            minWidth: 56,
-                                                            height: 56,
-                                                            borderRadius: 2,
-                                                            background: 'linear-gradient(135deg, #6366f1 0%, #8b5cf6 100%)',
-                                                            display: 'flex',
-                                                            flexDirection: 'column',
-                                                            alignItems: 'center',
-                                                            justifyContent: 'center',
-                                                            boxShadow: '0 4px 15px rgba(99, 102, 241, 0.3)',
-                                                        }}>
-                                                            <Typography sx={{ fontWeight: 800, color: 'white', fontSize: '1.25rem' }}>{count}</Typography>
-                                                            <Typography sx={{ color: 'rgba(255,255,255,0.7)', fontSize: '0.6rem', textTransform: 'uppercase' }}>Factor</Typography>
-                                                        </Box>
-                                                        <Stack direction="row" spacing={4} sx={{ flex: 1 }}>
-                                                            <Box>
-                                                                <Typography variant="caption" sx={{ color: '#94a3b8' }}>Models</Typography>
-                                                                <Typography sx={{ fontWeight: 600, color: '#f1f5f9' }}>{data.models.length}</Typography>
-                                                            </Box>
-                                                            <Box>
-                                                                <Typography variant="caption" sx={{ color: '#94a3b8' }}>Trades</Typography>
-                                                                <Typography sx={{ fontWeight: 600, color: '#f1f5f9' }}>{data.totalTrades}</Typography>
-                                                            </Box>
-                                                            <Box>
-                                                                <Typography variant="caption" sx={{ color: '#94a3b8' }}>Avg Win Rate</Typography>
-                                                                <Typography sx={{ fontWeight: 600, color: avgWinRate >= 50 ? '#4ade80' : '#f87171' }}>{avgWinRate.toFixed(1)}%</Typography>
-                                                            </Box>
-                                                            <Box>
-                                                                <Typography variant="caption" sx={{ color: '#94a3b8' }}>Avg {measurementMode}</Typography>
-                                                                <Typography sx={{ fontWeight: 600, color: avgValue >= 0 ? '#4ade80' : '#f87171' }}>{avgValue >= 0 ? '+' : ''}{avgValue.toFixed(1)}</Typography>
-                                                            </Box>
-                                                        </Stack>
-                                                    </Stack>
-                                                </Box>
-                                            );
-                                        });
-                                    })()}
-                                </Stack>
-                            </Box>
-
-
-                            {/* 3. Hiệu Quả Giao Dịch */}
                             <Box>
                                 <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
                                     <Typography sx={{ fontSize: 18 }}>💰</Typography>
@@ -243,7 +167,6 @@ export function TestCharts() {
                                 </Stack>
                             </Box>
 
-                            {/* 4. Kỳ Vọng */}
                             <Box>
                                 <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
                                     <Typography sx={{ fontSize: 18 }}>🎯</Typography>
@@ -274,7 +197,6 @@ export function TestCharts() {
                                 </Stack>
                             </Box>
 
-                            {/* 5. Bảng Xếp Hạng */}
                             <Box>
                                 <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
                                     <Typography sx={{ fontSize: 18 }}>📋</Typography>
