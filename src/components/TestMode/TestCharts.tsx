@@ -272,10 +272,10 @@ export function TestCharts() {
                         </Stack>
                     </Box>
 
-                    {/* 3. RR Thực Tế (Avg Win / Avg Loss) */}
+                    {/* 3. Hiệu Quả Giao Dịch */}
                     <Box>
                         <Typography variant="subtitle1" fontWeight={600} gutterBottom>
-                            💰 RR Thực Tế
+                            💰 Hiệu Quả Giao Dịch
                         </Typography>
                         <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 2 }}>
                             Công thức: RR = Trung bình Win / Trung bình Loss
