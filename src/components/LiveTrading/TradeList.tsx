@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     Box,
     Paper,
@@ -38,16 +38,19 @@ interface TradeDetailsDialogProps {
     onClose: () => void;
 }
 
-function TradeDetailsDialog({ trade, open, onClose }: TradeDetailsDialogProps) {
-    const { updateTradeNotes, addTradeImage, removeTradeImage } = useLiveSessionStore();
+function TradeDetailsDialog({ trade: tradeProp, open, onClose }: TradeDetailsDialogProps) {
+    const { currentSession, updateTradeNotes, addTradeImage, removeTradeImage } = useLiveSessionStore();
     const [notes, setNotes] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Get fresh trade data from store
+    const trade = currentSession?.trades.find(t => t.id === tradeProp?.id) || tradeProp;
 
     React.useEffect(() => {
         if (trade) {
             setNotes(trade.notes || '');
         }
-    }, [trade]);
+    }, [trade?.id]);
 
     const handleSaveNotes = () => {
         if (trade) {
@@ -67,6 +70,38 @@ function TradeDetailsDialog({ trade, open, onClose }: TradeDetailsDialogProps) {
         reader.readAsDataURL(file);
         e.target.value = '';
     };
+
+    // Handle paste image from clipboard
+    const handlePaste = useCallback((e: ClipboardEvent) => {
+        if (!trade || !open) return;
+
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                e.preventDefault();
+                e.stopPropagation();
+                const blob = items[i].getAsFile();
+                if (blob) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const base64 = event.target?.result as string;
+                        addTradeImage(trade.id, base64);
+                    };
+                    reader.readAsDataURL(blob);
+                }
+                break;
+            }
+        }
+    }, [trade?.id, open, addTradeImage]);
+
+    useEffect(() => {
+        if (open && trade) {
+            document.addEventListener('paste', handlePaste, true);
+            return () => document.removeEventListener('paste', handlePaste, true);
+        }
+    }, [open, trade?.id, handlePaste]);
 
     if (!trade) return null;
 
@@ -101,7 +136,7 @@ function TradeDetailsDialog({ trade, open, onClose }: TradeDetailsDialogProps) {
 
                     <Box>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Images
+                            Images (Ctrl+V to paste)
                         </Typography>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                             {trade.images?.map((img, index) => (

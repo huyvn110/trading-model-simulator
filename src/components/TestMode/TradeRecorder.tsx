@@ -82,6 +82,10 @@ export function TradeRecorder() {
 
     // Handle Ctrl+V paste for images
     const handlePaste = useCallback((e: ClipboardEvent) => {
+        // Don't capture paste if a dialog is open (checking for MUI dialog backdrop)
+        const dialogOpen = document.querySelector('.MuiDialog-root');
+        if (dialogOpen) return;
+
         const items = e.clipboardData?.items;
         if (!items) return;
 
@@ -242,31 +246,27 @@ export function TradeRecorder() {
                     {/* Image Upload */}
                     <Box>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Ảnh (Ctrl+V hoặc click)
+                            Hình ảnh (tùy chọn)
                         </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap alignItems="center">
-                            {/* Image Thumbnails */}
+                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                             {images.map((img, index) => (
                                 <Box
                                     key={index}
                                     sx={{
                                         position: 'relative',
-                                        width: 50,
-                                        height: 50,
+                                        width: 80,
+                                        height: 80,
                                         borderRadius: 1,
                                         overflow: 'hidden',
-                                        border: '2px solid',
-                                        borderColor: 'primary.main',
+                                        border: '1px solid',
+                                        borderColor: 'divider',
                                         cursor: 'pointer',
-                                        '&:hover': {
-                                            opacity: 0.8,
-                                        },
                                     }}
                                     onClick={() => setZoomImage(img)}
                                 >
                                     <img
                                         src={img}
-                                        alt={`Upload ${index + 1}`}
+                                        alt={`Image ${index + 1}`}
                                         style={{
                                             width: '100%',
                                             height: '100%',
@@ -281,39 +281,27 @@ export function TradeRecorder() {
                                         }}
                                         sx={{
                                             position: 'absolute',
-                                            top: -4,
-                                            right: -4,
-                                            bgcolor: 'error.main',
+                                            top: 2,
+                                            right: 2,
+                                            bgcolor: 'rgba(0,0,0,0.5)',
                                             color: 'white',
-                                            padding: '2px',
-                                            '&:hover': { bgcolor: 'error.dark' },
+                                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
                                         }}
                                     >
-                                        <DeleteIcon sx={{ fontSize: 12 }} />
+                                        <DeleteIcon fontSize="small" />
                                     </IconButton>
                                 </Box>
                             ))}
-                            {/* Add Image Button */}
-                            <Box
-                                sx={{
-                                    width: 50,
-                                    height: 50,
-                                    borderRadius: 1,
-                                    border: '2px dashed',
-                                    borderColor: 'grey.400',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    cursor: 'pointer',
-                                    '&:hover': {
-                                        borderColor: 'primary.main',
-                                        bgcolor: 'primary.50',
-                                    },
-                                }}
+                            <Button
+                                variant="outlined"
                                 onClick={() => fileInputRef.current?.click()}
+                                sx={{ width: 80, height: 80, fontSize: '0.75rem' }}
                             >
-                                <ImageIcon sx={{ color: 'grey.500' }} />
-                            </Box>
+                                <Stack alignItems="center" spacing={0.5}>
+                                    <ImageIcon />
+                                    <Typography variant="caption">Add</Typography>
+                                </Stack>
+                            </Button>
                         </Stack>
                         <input
                             type="file"

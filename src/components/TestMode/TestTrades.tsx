@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useCallback, useEffect } from 'react';
 import {
     Box,
     Paper,
@@ -43,16 +43,19 @@ interface TradeDetailsDialogProps {
     getFactorName: (id: string) => string;
 }
 
-function TradeDetailsDialog({ trade, open, onClose, getFactorName }: TradeDetailsDialogProps) {
-    const { updateTradeNotes, addTradeImage, removeTradeImage } = useTestSessionStore();
+function TradeDetailsDialog({ trade: tradeProp, open, onClose, getFactorName }: TradeDetailsDialogProps) {
+    const { currentSession, updateTradeNotes, addTradeImage, removeTradeImage } = useTestSessionStore();
     const [notes, setNotes] = useState('');
     const fileInputRef = useRef<HTMLInputElement>(null);
+
+    // Get fresh trade data from store
+    const trade = currentSession?.trades.find(t => t.id === tradeProp?.id) || tradeProp;
 
     React.useEffect(() => {
         if (trade) {
             setNotes(trade.notes || '');
         }
-    }, [trade]);
+    }, [trade?.id]);
 
     const handleSaveNotes = () => {
         if (trade) {
@@ -73,6 +76,38 @@ function TradeDetailsDialog({ trade, open, onClose, getFactorName }: TradeDetail
         e.target.value = '';
     };
 
+    // Handle paste image from clipboard
+    const handlePaste = useCallback((e: ClipboardEvent) => {
+        if (!trade || !open) return;
+
+        const items = e.clipboardData?.items;
+        if (!items) return;
+
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].type.indexOf('image') !== -1) {
+                e.preventDefault();
+                e.stopPropagation();
+                const blob = items[i].getAsFile();
+                if (blob) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const base64 = event.target?.result as string;
+                        addTradeImage(trade.id, base64);
+                    };
+                    reader.readAsDataURL(blob);
+                }
+                break;
+            }
+        }
+    }, [trade?.id, open, addTradeImage]);
+
+    useEffect(() => {
+        if (open && trade) {
+            document.addEventListener('paste', handlePaste, true);
+            return () => document.removeEventListener('paste', handlePaste, true);
+        }
+    }, [open, trade?.id, handlePaste]);
+
     if (!trade) return null;
 
     // Resolve factor names from IDs
@@ -84,18 +119,32 @@ function TradeDetailsDialog({ trade, open, onClose, getFactorName }: TradeDetail
                 Chi tiết Trade
             </DialogTitle>
             <DialogContent>
-                <Stack spacing={2} sx={{ mt: 1 }}>
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Model
-                        </Typography>
-                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                            {factorNames.map((name) => (
-                                <Chip key={name} label={name} size="small" color="primary" />
-                            ))}
-                        </Stack>
-                    </Box>
+                <Stack spacing={2.5} sx={{ mt: 1 }}>
+                    {/* Model & Result */}
+                    <Stack direction="row" spacing={2} alignItems="center">
+                        <Box sx={{ flex: 1 }}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Model
+                            </Typography>
+                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                                {factorNames.map((name) => (
+                                    <Chip key={name} label={name} size="small" color="primary" />
+                                ))}
+                            </Stack>
+                        </Box>
+                        <Box>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Kết quả
+                            </Typography>
+                            <Chip
+                                icon={trade.result === 'win' ? <WinIcon /> : <LoseIcon />}
+                                label={trade.result === 'win' ? 'WIN' : 'LOSE'}
+                                color={trade.result === 'win' ? 'success' : 'error'}
+                            />
+                        </Box>
+                    </Stack>
 
+                    {/* Notes */}
                     <TextField
                         label="Ghi chú"
                         value={notes}
@@ -107,9 +156,10 @@ function TradeDetailsDialog({ trade, open, onClose, getFactorName }: TradeDetail
                         placeholder="Thêm ghi chú..."
                     />
 
+                    {/* Images */}
                     <Box>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Ảnh
+                            Ảnh (Ctrl+V để dán)
                         </Typography>
                         <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                             {trade.images?.map((img, index) => (
@@ -143,10 +193,11 @@ function TradeDetailsDialog({ trade, open, onClose, getFactorName }: TradeDetail
                                             right: 2,
                                             bgcolor: 'rgba(0,0,0,0.5)',
                                             color: 'white',
-                                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                            padding: '2px',
+                                            '&:hover': { bgcolor: 'error.main' },
                                         }}
                                     >
-                                        <DeleteIcon fontSize="small" />
+                                        <DeleteIcon sx={{ fontSize: 16 }} />
                                     </IconButton>
                                 </Box>
                             ))}
