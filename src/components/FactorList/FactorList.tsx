@@ -11,6 +11,11 @@ import {
     Button,
     Tooltip,
     Stack,
+    Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogContentText,
+    DialogActions,
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -169,6 +174,8 @@ function SortableFactor({ factor, onToggle, onUpdate, onDelete }: SortableFactor
 
 export function FactorList() {
     const [newFactorName, setNewFactorName] = useState('');
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [factorToDelete, setFactorToDelete] = useState<Factor | null>(null);
     const {
         factors,
         addFactor,
@@ -210,6 +217,24 @@ export function FactorList() {
         }
     };
 
+    const handleDeleteClick = (factor: Factor) => {
+        setFactorToDelete(factor);
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = () => {
+        if (factorToDelete) {
+            deleteFactor(factorToDelete.id);
+        }
+        setDeleteDialogOpen(false);
+        setFactorToDelete(null);
+    };
+
+    const handleDeleteCancel = () => {
+        setDeleteDialogOpen(false);
+        setFactorToDelete(null);
+    };
+
     const selectedCount = factors.filter((f) => f.selected).length;
     const allSelected = selectedCount === factors.length && factors.length > 0;
     const someSelected = selectedCount > 0 && selectedCount < factors.length;
@@ -229,26 +254,15 @@ export function FactorList() {
                 </Typography>
             </Box>
 
-            <Stack direction="row" spacing={1} sx={{ mb: 2 }}>
-                <Tooltip title="Select All">
-                    <IconButton
-                        size="small"
-                        onClick={() => toggleAll(true)}
-                        sx={{ color: allSelected ? 'primary.main' : 'text.secondary' }}
-                    >
-                        <CheckBoxIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
-                <Tooltip title="Deselect All">
-                    <IconButton
-                        size="small"
-                        onClick={() => toggleAll(false)}
-                        sx={{ color: 'text.secondary' }}
-                    >
-                        <CheckBoxOutlineBlankIcon fontSize="small" />
-                    </IconButton>
-                </Tooltip>
-            </Stack>
+            <Tooltip title={allSelected ? "Deselect All" : "Select All"}>
+                <IconButton
+                    size="small"
+                    onClick={() => toggleAll(!allSelected)}
+                    sx={{ color: allSelected ? 'primary.main' : 'text.secondary' }}
+                >
+                    {allSelected ? <CheckBoxIcon fontSize="small" /> : <CheckBoxOutlineBlankIcon fontSize="small" />}
+                </IconButton>
+            </Tooltip>
 
             <DndContext
                 sensors={sensors}
@@ -266,7 +280,7 @@ export function FactorList() {
                                 factor={factor}
                                 onToggle={() => toggleFactor(factor.id)}
                                 onUpdate={(name) => updateFactor(factor.id, name)}
-                                onDelete={() => deleteFactor(factor.id)}
+                                onDelete={() => handleDeleteClick(factor)}
                             />
                         ))}
                     </Box>
@@ -311,6 +325,31 @@ export function FactorList() {
                     Add
                 </Button>
             </Box>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={handleDeleteCancel}
+                aria-labelledby="delete-dialog-title"
+                aria-describedby="delete-dialog-description"
+            >
+                <DialogTitle id="delete-dialog-title">
+                    Xác nhận xóa Factor
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="delete-dialog-description">
+                        Bạn có chắc chắn muốn xóa factor "<strong>{factorToDelete?.name}</strong>"?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleDeleteCancel} color="inherit">
+                        Hủy
+                    </Button>
+                    <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
+                        Xóa
+                    </Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

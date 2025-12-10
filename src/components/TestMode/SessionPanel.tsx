@@ -21,6 +21,7 @@ import {
     Dialog,
     DialogTitle,
     DialogContent,
+    DialogContentText,
     DialogActions,
 } from '@mui/material';
 import {
@@ -53,6 +54,29 @@ export function SessionPanel() {
     const [renameDialogOpen, setRenameDialogOpen] = useState(false);
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState('');
+
+    // Delete confirmation state
+    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
+
+    const handleDeleteClick = (id: string, name: string, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSessionToDelete({ id, name });
+        setDeleteDialogOpen(true);
+    };
+
+    const handleDeleteConfirm = () => {
+        if (sessionToDelete) {
+            deleteSession(sessionToDelete.id);
+        }
+        setDeleteDialogOpen(false);
+        setSessionToDelete(null);
+    };
+
+    const handleDeleteCancel = () => {
+        setDeleteDialogOpen(false);
+        setSessionToDelete(null);
+    };
 
     const handleRenameClick = (id: string, currentName: string) => {
         setEditingSessionId(id);
@@ -254,10 +278,7 @@ export function SessionPanel() {
                                     <Tooltip title="Xóa">
                                         <IconButton
                                             size="small"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                deleteSession(session.id);
-                                            }}
+                                            onClick={(e) => handleDeleteClick(session.id, session.name, e)}
                                             sx={{ color: 'error.main' }}
                                         >
                                             <DeleteIcon fontSize="small" />
@@ -287,6 +308,31 @@ export function SessionPanel() {
                 <DialogActions>
                     <Button onClick={() => setRenameDialogOpen(false)}>Hủy</Button>
                     <Button onClick={handleRenameSubmit} variant="contained">Lưu</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Delete Confirmation Dialog */}
+            <Dialog
+                open={deleteDialogOpen}
+                onClose={handleDeleteCancel}
+                aria-labelledby="delete-session-dialog-title"
+                aria-describedby="delete-session-dialog-description"
+            >
+                <DialogTitle id="delete-session-dialog-title">
+                    Xác nhận xóa Session
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText id="delete-session-dialog-description">
+                        Bạn có chắc chắn muốn xóa phiên "<strong>{sessionToDelete?.name}</strong>"?
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={handleDeleteCancel} color="inherit">
+                        Hủy
+                    </Button>
+                    <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
+                        Xóa
+                    </Button>
                 </DialogActions>
             </Dialog>
         </Box>

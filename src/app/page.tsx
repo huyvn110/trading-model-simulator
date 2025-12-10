@@ -168,9 +168,9 @@ export default function Home() {
                                         sx={{
                                             px: 2,
                                             py: 1,
-                                            bgcolor: 'action.hover',
+                                            bgcolor: 'grey.200',
                                             cursor: 'pointer',
-                                            '&:hover': { bgcolor: 'action.selected' },
+                                            '&:hover': { bgcolor: 'grey.300' },
                                         }}
                                         onClick={() => setSessionOpen(!sessionOpen)}
                                     >
@@ -193,9 +193,9 @@ export default function Home() {
                                         sx={{
                                             px: 2,
                                             py: 1,
-                                            bgcolor: 'action.hover',
+                                            bgcolor: 'grey.200',
                                             cursor: 'pointer',
-                                            '&:hover': { bgcolor: 'action.selected' },
+                                            '&:hover': { bgcolor: 'grey.300' },
                                         }}
                                         onClick={() => setRecorderOpen(!recorderOpen)}
                                     >
