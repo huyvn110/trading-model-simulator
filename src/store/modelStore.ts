@@ -14,6 +14,9 @@ interface ModelState {
     selectModel: (id: string | null) => void;
     reorderModels: (activeId: string, overId: string) => void;
     getSelectedModel: () => TradingModel | null;
+    toggleFactor: (modelId: string, factor: string) => void;
+    resetChecklist: (modelId: string) => void;
+    areAllFactorsChecked: (modelId: string) => boolean;
 }
 
 export const useModelStore = create<ModelState>()(
@@ -30,6 +33,7 @@ export const useModelStore = create<ModelState>()(
                             id: uuidv4(),
                             name,
                             factors,
+                            checkedFactors: [],
                             order: state.models.length,
                         },
                     ],
@@ -39,7 +43,7 @@ export const useModelStore = create<ModelState>()(
             updateModel: (id: string, name: string, factors: string[]) => {
                 set((state) => ({
                     models: state.models.map((m) =>
-                        m.id === id ? { ...m, name, factors } : m
+                        m.id === id ? { ...m, name, factors, checkedFactors: [] } : m
                     ),
                 }));
             },
@@ -55,7 +59,23 @@ export const useModelStore = create<ModelState>()(
             },
 
             selectModel: (id: string | null) => {
-                set({ selectedModelId: id });
+                set((state) => ({
+                    selectedModelId: id,
+                    models: state.models.map((m) => {
+                        if (id === null) {
+                            // Deselecting - clear current model's checklist
+                            if (m.id === state.selectedModelId) {
+                                return { ...m, checkedFactors: [] };
+                            }
+                            return m;
+                        }
+                        if (m.id === id) {
+                            // Selecting - check all factors
+                            return { ...m, checkedFactors: [...m.factors] };
+                        }
+                        return m;
+                    }),
+                }));
             },
 
             reorderModels: (activeId: string, overId: string) => {
@@ -78,6 +98,58 @@ export const useModelStore = create<ModelState>()(
             getSelectedModel: () => {
                 const { models, selectedModelId } = get();
                 return models.find((m) => m.id === selectedModelId) || null;
+            },
+
+            toggleFactor: (modelId: string, factor: string) => {
+                set((state) => {
+                    const updatedModels = state.models.map((m) => {
+                        if (m.id !== modelId) return m;
+                        const checkedFactors = m.checkedFactors || [];
+                        const isChecked = checkedFactors.includes(factor);
+                        return {
+                            ...m,
+                            checkedFactors: isChecked
+                                ? checkedFactors.filter((f) => f !== factor)
+                                : [...checkedFactors, factor],
+                        };
+                    });
+
+                    // Check updated model state
+                    const updatedModel = updatedModels.find((m) => m.id === modelId);
+                    const checkedCount = (updatedModel?.checkedFactors || []).length;
+                    const totalFactors = updatedModel?.factors.length || 0;
+
+                    // Auto-select when all checked, auto-deselect when none checked
+                    const allChecked = totalFactors > 0 && checkedCount === totalFactors;
+                    const noneChecked = checkedCount === 0;
+
+                    let newSelectedId = state.selectedModelId;
+                    if (allChecked) {
+                        newSelectedId = modelId;
+                    } else if (noneChecked && state.selectedModelId === modelId) {
+                        newSelectedId = null;
+                    }
+
+                    return {
+                        models: updatedModels,
+                        selectedModelId: newSelectedId,
+                    };
+                });
+            },
+
+            resetChecklist: (modelId: string) => {
+                set((state) => ({
+                    models: state.models.map((m) =>
+                        m.id === modelId ? { ...m, checkedFactors: [] } : m
+                    ),
+                }));
+            },
+
+            areAllFactorsChecked: (modelId: string) => {
+                const model = get().models.find((m) => m.id === modelId);
+                if (!model || model.factors.length === 0) return true;
+                const checkedFactors = model.checkedFactors || [];
+                return model.factors.every((f) => checkedFactors.includes(f));
             },
         }),
         {

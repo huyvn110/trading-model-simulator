@@ -16,6 +16,8 @@ import {
     DialogTitle,
     DialogContent,
     DialogActions,
+    Checkbox,
+    FormControlLabel,
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -34,10 +36,13 @@ interface ModelItemProps {
     onSelect: () => void;
     onEdit: () => void;
     onDelete: () => void;
+    onToggleFactor: (factor: string) => void;
 }
 
-function ModelItem({ model, isSelected, onSelect, onEdit, onDelete }: ModelItemProps) {
+function ModelItem({ model, isSelected, onSelect, onEdit, onDelete, onToggleFactor }: ModelItemProps) {
     const [expanded, setExpanded] = useState(false);
+    const checkedCount = model.checkedFactors?.length || 0;
+    const totalFactors = model.factors.length;
 
     return (
         <Box
@@ -74,9 +79,10 @@ function ModelItem({ model, isSelected, onSelect, onEdit, onDelete }: ModelItemP
                     {model.name}
                 </Typography>
                 <Chip
-                    label={`${model.factors.length} factors`}
+                    label={`${checkedCount}/${totalFactors}`}
                     size="small"
-                    variant="outlined"
+                    variant={checkedCount === totalFactors && totalFactors > 0 ? "filled" : "outlined"}
+                    color={checkedCount === totalFactors && totalFactors > 0 ? "success" : "default"}
                     sx={{ fontSize: '0.75rem' }}
                 />
                 <IconButton
@@ -110,16 +116,31 @@ function ModelItem({ model, isSelected, onSelect, onEdit, onDelete }: ModelItemP
             </Box>
             <Collapse in={expanded}>
                 <Box sx={{ px: 2, pb: 1.5, pt: 0.5 }}>
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                    <Stack spacing={0.5}>
                         {model.factors.map((factor, index) => (
-                            <Chip
+                            <FormControlLabel
                                 key={index}
-                                label={factor}
-                                size="small"
-                                sx={{
-                                    fontSize: '0.75rem',
-                                    bgcolor: 'grey.100',
-                                }}
+                                onClick={(e) => e.stopPropagation()}
+                                control={
+                                    <Checkbox
+                                        size="small"
+                                        checked={model.checkedFactors?.includes(factor) || false}
+                                        onChange={() => onToggleFactor(factor)}
+                                        sx={{ py: 0.25 }}
+                                    />
+                                }
+                                label={
+                                    <Typography
+                                        variant="body2"
+                                        sx={{
+                                            textDecoration: model.checkedFactors?.includes(factor) ? 'line-through' : 'none',
+                                            color: model.checkedFactors?.includes(factor) ? 'text.secondary' : 'text.primary',
+                                        }}
+                                    >
+                                        {factor}
+                                    </Typography>
+                                }
+                                sx={{ m: 0 }}
                             />
                         ))}
                         {model.factors.length === 0 && (
@@ -143,25 +164,33 @@ interface ModelDialogProps {
 function ModelDialog({ open, onClose, editModel }: ModelDialogProps) {
     const { addModel, updateModel } = useModelStore();
     const [name, setName] = useState('');
-    const [factorsText, setFactorsText] = useState('');
+    const [factors, setFactors] = useState<string[]>([]);
+    const [newFactor, setNewFactor] = useState('');
 
     React.useEffect(() => {
         if (editModel) {
             setName(editModel.name);
-            setFactorsText(editModel.factors.join('\n'));
+            setFactors([...editModel.factors]);
         } else {
             setName('');
-            setFactorsText('');
+            setFactors([]);
         }
+        setNewFactor('');
     }, [editModel, open]);
+
+    const handleAddFactor = () => {
+        if (newFactor.trim()) {
+            setFactors([...factors, newFactor.trim()]);
+            setNewFactor('');
+        }
+    };
+
+    const handleRemoveFactor = (index: number) => {
+        setFactors(factors.filter((_, i) => i !== index));
+    };
 
     const handleSave = () => {
         if (!name.trim()) return;
-
-        const factors = factorsText
-            .split('\n')
-            .map((f) => f.trim())
-            .filter((f) => f.length > 0);
 
         if (editModel) {
             updateModel(editModel.id, name.trim(), factors);
@@ -185,15 +214,68 @@ function ModelDialog({ open, onClose, editModel }: ModelDialogProps) {
                         fullWidth
                         autoFocus
                     />
-                    <TextField
-                        label="Factors (one per line)"
-                        value={factorsText}
-                        onChange={(e) => setFactorsText(e.target.value)}
-                        multiline
-                        rows={4}
-                        fullWidth
-                        placeholder="Factor 1&#10;Factor 2&#10;Factor 3"
-                    />
+
+                    {/* Factors List */}
+                    <Box>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Factors ({factors.length})
+                        </Typography>
+
+                        {/* Existing Factors */}
+                        <Stack spacing={0.5} sx={{ mb: 1.5 }}>
+                            {factors.map((factor, index) => (
+                                <Stack
+                                    key={index}
+                                    direction="row"
+                                    alignItems="center"
+                                    spacing={1}
+                                    sx={{
+                                        p: 1,
+                                        bgcolor: 'grey.100',
+                                        borderRadius: 1,
+                                    }}
+                                >
+                                    <Typography sx={{ flex: 1 }}>{factor}</Typography>
+                                    <IconButton
+                                        size="small"
+                                        onClick={() => handleRemoveFactor(index)}
+                                        sx={{ color: 'error.main' }}
+                                    >
+                                        <DeleteIcon fontSize="small" />
+                                    </IconButton>
+                                </Stack>
+                            ))}
+                            {factors.length === 0 && (
+                                <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                                    Chưa có factor nào
+                                </Typography>
+                            )}
+                        </Stack>
+
+                        {/* Add New Factor */}
+                        <Stack direction="row" spacing={1}>
+                            <TextField
+                                value={newFactor}
+                                onChange={(e) => setNewFactor(e.target.value)}
+                                size="small"
+                                fullWidth
+                                placeholder="Nhập factor mới..."
+                                onKeyPress={(e) => {
+                                    if (e.key === 'Enter') {
+                                        e.preventDefault();
+                                        handleAddFactor();
+                                    }
+                                }}
+                            />
+                            <Button
+                                variant="outlined"
+                                onClick={handleAddFactor}
+                                disabled={!newFactor.trim()}
+                            >
+                                <AddIcon />
+                            </Button>
+                        </Stack>
+                    </Box>
                 </Stack>
             </DialogContent>
             <DialogActions>
@@ -211,7 +293,7 @@ function ModelDialog({ open, onClose, editModel }: ModelDialogProps) {
 }
 
 export function ModelList() {
-    const { models, selectedModelId, selectModel, deleteModel } = useModelStore();
+    const { models, selectedModelId, selectModel, deleteModel, toggleFactor } = useModelStore();
     const [dialogOpen, setDialogOpen] = useState(false);
     const [editingModel, setEditingModel] = useState<TradingModel | null>(null);
 
@@ -227,13 +309,9 @@ export function ModelList() {
 
     return (
         <>
-            <Paper
-                elevation={0}
+            <Box
                 sx={{
                     p: 2.5,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: 'divider',
                 }}
             >
                 <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
@@ -254,6 +332,7 @@ export function ModelList() {
                             onSelect={() => selectModel(model.id === selectedModelId ? null : model.id)}
                             onEdit={() => handleEdit(model)}
                             onDelete={() => deleteModel(model.id)}
+                            onToggleFactor={(factor) => toggleFactor(model.id, factor)}
                         />
                     ))}
                 </Stack>
@@ -275,7 +354,7 @@ export function ModelList() {
                 >
                     Add Model
                 </Button>
-            </Paper>
+            </Box>
 
             <ModelDialog
                 open={dialogOpen}

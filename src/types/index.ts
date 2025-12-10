@@ -50,6 +50,7 @@ export interface TradingModel {
     id: string;
     name: string;
     factors: string[];
+    checkedFactors: string[]; // factors that are checked/confirmed before trading
     order: number;
 }
 

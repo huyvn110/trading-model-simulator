@@ -25,7 +25,7 @@ import { useLiveSessionStore } from '@/store/liveSessionStore';
 import { MeasurementMode } from '@/types';
 
 export function TradePanel() {
-    const { getSelectedModel } = useModelStore();
+    const { getSelectedModel, areAllFactorsChecked, resetChecklist } = useModelStore();
     const {
         measurementMode,
         setMeasurementMode,
@@ -40,6 +40,7 @@ export function TradePanel() {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const selectedModel = getSelectedModel();
     const isSessionActive = !!currentSession;
+    const allFactorsChecked = selectedModel ? areAllFactorsChecked(selectedModel.id) : false;
 
     const handleAddTrade = (result: 'win' | 'lose') => {
         if (!selectedModel || !value) return;
@@ -58,6 +59,9 @@ export function TradePanel() {
             notes.trim() || undefined,
             images.length > 0 ? images : undefined
         );
+
+        // Reset checklist and form after trade
+        resetChecklist(selectedModel.id);
         setValue('');
         setProfitRatio('');
         setNotes('');
@@ -159,13 +163,9 @@ export function TradePanel() {
     }, [handlePaste]);
 
     return (
-        <Paper
-            elevation={0}
+        <Box
             sx={{
                 p: 2.5,
-                borderRadius: 2,
-                border: '1px solid',
-                borderColor: 'divider',
             }}
         >
             <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
@@ -343,6 +343,13 @@ export function TradePanel() {
                     </Typography>
                 </Box>
 
+                {/* Checklist Warning */}
+                {selectedModel && selectedModel.factors.length > 0 && !allFactorsChecked && (
+                    <Alert severity="warning" sx={{ py: 0.5 }}>
+                        Vui lòng check hết factors trước khi trade
+                    </Alert>
+                )}
+
                 {/* Win/Lose Buttons */}
                 <Stack direction="row" spacing={1.5}>
                     <Button
@@ -352,7 +359,7 @@ export function TradePanel() {
                         size="large"
                         startIcon={<WinIcon />}
                         onClick={() => handleAddTrade('win')}
-                        disabled={!selectedModel || !value || parseFloat(value) <= 0}
+                        disabled={!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked}
                         sx={{
                             py: 1.5,
                             fontWeight: 600,
@@ -368,7 +375,7 @@ export function TradePanel() {
                         size="large"
                         startIcon={<LoseIcon />}
                         onClick={() => handleAddTrade('lose')}
-                        disabled={!selectedModel || !value || parseFloat(value) <= 0}
+                        disabled={!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked}
                         sx={{
                             py: 1.5,
                             fontWeight: 600,
@@ -389,7 +396,7 @@ export function TradePanel() {
                     />
                 )}
             </Stack>
-        </Paper>
+        </Box>
     );
 }
 

@@ -39,6 +39,7 @@ const ModelList = lazy(() => import('@/components/LiveTrading/ModelList'));
 const TradePanel = lazy(() => import('@/components/LiveTrading/TradePanel'));
 const TradeList = lazy(() => import('@/components/LiveTrading/TradeList'));
 const ModelStats = lazy(() => import('@/components/LiveTrading/ModelStats'));
+const LiveCharts = lazy(() => import('@/components/LiveTrading/LiveCharts'));
 const LiveSessionHistory = lazy(() => import('@/components/LiveTrading/SessionHistory'));
 
 // Loading component
@@ -84,6 +85,7 @@ export default function Home() {
     const [sessionOpen, setSessionOpen] = useState(true);
     const [factorOpen, setFactorOpen] = useState(true);
     const [recorderOpen, setRecorderOpen] = useState(true);
+    const [liveTradeOpen, setLiveTradeOpen] = useState(true);
 
     return (
         <Box
@@ -261,16 +263,36 @@ export default function Home() {
                 {/* Live Mode - Model-based Trading */}
                 {appMode === 'live' && (
                     <Grid container spacing={3}>
-                        {/* Left Column - Models & Trade Panel */}
+                        {/* Left Column - Models & Trade Panel Combined */}
                         <Grid item xs={12} md={4} lg={3}>
-                            <Box sx={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                                <Suspense fallback={<LoadingFallback />}>
-                                    <ModelList />
-                                </Suspense>
-                                <Suspense fallback={<LoadingFallback />}>
-                                    <TradePanel />
-                                </Suspense>
-                            </Box>
+                            <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
+                                <Stack
+                                    direction="row"
+                                    alignItems="center"
+                                    justifyContent="space-between"
+                                    sx={{
+                                        px: 2,
+                                        py: 1,
+                                        bgcolor: 'grey.200',
+                                        cursor: 'pointer',
+                                        '&:hover': { bgcolor: 'grey.300' },
+                                    }}
+                                    onClick={() => setLiveTradeOpen(!liveTradeOpen)}
+                                >
+                                    <Typography variant="subtitle2" fontWeight={600}>🔥 Giao dịch</Typography>
+                                    <IconButton size="small">
+                                        {liveTradeOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
+                                    </IconButton>
+                                </Stack>
+                                <Collapse in={liveTradeOpen}>
+                                    <Suspense fallback={<LoadingFallback />}>
+                                        <ModelList />
+                                    </Suspense>
+                                    <Suspense fallback={<LoadingFallback />}>
+                                        <TradePanel />
+                                    </Suspense>
+                                </Collapse>
+                            </Paper>
                         </Grid>
 
                         {/* Right Column - Trades & Stats */}
@@ -312,7 +334,7 @@ export default function Home() {
 
                                 <TabPanel value={liveTab} index={1}>
                                     <Suspense fallback={<LoadingFallback />}>
-                                        <ModelStats />
+                                        <LiveCharts />
                                     </Suspense>
                                 </TabPanel>
 
