@@ -3,3 +3,4 @@ export { TradeRecorder } from './TradeRecorder';
 export { TestResults } from './TestResults';
 export { TestTrades } from './TestTrades';
 export { TestCharts } from './TestCharts';
+export { SessionHistory } from './SessionHistory';

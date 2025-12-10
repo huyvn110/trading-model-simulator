@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import {
     Box,
     Paper,
@@ -23,6 +23,8 @@ import {
     DialogContent,
     DialogContentText,
     DialogActions,
+    CircularProgress,
+    Alert,
 } from '@mui/material';
 import {
     Add as AddIcon,
@@ -30,9 +32,16 @@ import {
     PlayArrow as ActiveIcon,
     Stop as StopIcon,
     Edit as EditIcon,
+    FileDownload as ExportIcon,
+    TableChart as ExcelIcon,
+    Backup as BackupIcon,
+    CloudUpload as ImportIcon,
 } from '@mui/icons-material';
-import { useTestSessionStore } from '@/store/testSessionStore';
+import { useTestSessionStore, TestSession } from '@/store/testSessionStore';
+import { useFactorStore } from '@/store/factorStore';
 import { MeasurementMode } from '@/types';
+import { exportTestSessionToExcel } from '@/utils/exportExcel';
+import { backupTestSession, restoreTestSession } from '@/utils/backupUtils';
 
 export function SessionPanel() {
     const {
@@ -47,6 +56,8 @@ export function SessionPanel() {
         deleteSession,
     } = useTestSessionStore();
 
+    const { factors } = useFactorStore();
+
     const [sessionName, setSessionName] = useState('');
     const [sessionCounter, setSessionCounter] = useState(1);
 
@@ -58,6 +69,91 @@ export function SessionPanel() {
     // Delete confirmation state
     const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
     const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
+
+    // Export dialog state
+    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const [sessionToExport, setSessionToExport] = useState<TestSession | null>(null);
+    const [exporting, setExporting] = useState(false);
+    const [importError, setImportError] = useState<string | null>(null);
+    const [importSuccess, setImportSuccess] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const getFactorName = (id: string) => {
+        return factors.find(f => f.id === id)?.name || id;
+    };
+
+    const handleExportClick = (session: TestSession, e: React.MouseEvent) => {
+        e.stopPropagation();
+        setSessionToExport(session);
+        setExportDialogOpen(true);
+        setImportError(null);
+        setImportSuccess(false);
+    };
+
+    const handleExportExcel = async () => {
+        if (!sessionToExport) return;
+        setExporting(true);
+        try {
+            await exportTestSessionToExcel(sessionToExport, getFactorName);
+        } catch (error) {
+            console.error('Export error:', error);
+        }
+        setExporting(false);
+    };
+
+    const handleExportBackup = async () => {
+        if (!sessionToExport) return;
+        setExporting(true);
+        try {
+            await backupTestSession(sessionToExport, factors);
+        } catch (error) {
+            console.error('Backup error:', error);
+        }
+        setExporting(false);
+    };
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click();
+    };
+
+    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setExporting(true);
+        setImportError(null);
+
+        try {
+            const result = await restoreTestSession(file);
+            if (result) {
+                // Add session to store - need to access store directly
+                const store = useTestSessionStore.getState();
+                // Check if session with same ID already exists
+                const existingSession = store.sessions.find(s => s.id === result.session.id);
+                if (existingSession) {
+                    // Generate new ID to avoid conflicts
+                    result.session.id = `imported_${Date.now()}`;
+                    result.session.name = `${result.session.name} (imported)`;
+                }
+                // Add to sessions
+                useTestSessionStore.setState({
+                    sessions: [...store.sessions, result.session],
+                });
+                setImportSuccess(true);
+                setImportError(null);
+            } else {
+                setImportError('Không thể đọc file backup. Vui lòng kiểm tra định dạng file.');
+            }
+        } catch (error) {
+            setImportError('Có lỗi xảy ra khi import. Vui lòng thử lại.');
+        }
+
+        setExporting(false);
+        // Reset file input
+        if (fileInputRef.current) {
+            fileInputRef.current.value = '';
+        }
+    };
 
     const handleDeleteClick = (id: string, name: string, e: React.MouseEvent) => {
         e.stopPropagation();
@@ -217,9 +313,36 @@ export function SessionPanel() {
 
             {/* Sessions List */}
             <Box>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Danh sách phiên: {sessions.length} phiên
-                </Typography>
+                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+                    <Typography variant="subtitle2" color="text.secondary">
+                        Danh sách phiên: {sessions.length} phiên
+                    </Typography>
+                    <Tooltip title="Nhập dữ liệu từ ZIP">
+                        <IconButton
+                            size="small"
+                            onClick={handleImportClick}
+                            disabled={exporting}
+                            color="primary"
+                        >
+                            <ImportIcon fontSize="small" />
+                        </IconButton>
+                    </Tooltip>
+                </Stack>
+
+                <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={handleFileChange}
+                    accept=".zip"
+                    style={{ display: 'none' }}
+                />
+
+                {importError && (
+                    <Alert severity="error" sx={{ mb: 1 }} onClose={() => setImportError(null)}>{importError}</Alert>
+                )}
+                {importSuccess && (
+                    <Alert severity="success" sx={{ mb: 1 }} onClose={() => setImportSuccess(false)}>Đã import thành công!</Alert>
+                )}
 
                 {sessions.length === 0 ? (
                     <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
@@ -263,6 +386,15 @@ export function SessionPanel() {
                                     }
                                 />
                                 <ListItemSecondaryAction>
+                                    <Tooltip title="Xuất/Nhập">
+                                        <IconButton
+                                            size="small"
+                                            onClick={(e) => handleExportClick(session, e)}
+                                            sx={{ color: 'primary.main', mr: 0.5 }}
+                                        >
+                                            <ExportIcon fontSize="small" />
+                                        </IconButton>
+                                    </Tooltip>
                                     <Tooltip title="Đổi tên">
                                         <IconButton
                                             size="small"
@@ -335,7 +467,64 @@ export function SessionPanel() {
                     </Button>
                 </DialogActions>
             </Dialog>
-        </Box>
+
+            {/* Export Dialog */}
+            <Dialog
+                open={exportDialogOpen}
+                onClose={() => setExportDialogOpen(false)}
+                maxWidth="xs"
+                fullWidth
+            >
+                <DialogTitle>
+                    Xuất/Nhập dữ liệu
+                    {sessionToExport && (
+                        <Typography variant="body2" color="text.secondary">
+                            {sessionToExport.name}
+                        </Typography>
+                    )}
+                </DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ mt: 1 }}>
+                        {/* Export Excel */}
+                        <Button
+                            variant="outlined"
+                            startIcon={exporting ? <CircularProgress size={20} /> : <ExcelIcon />}
+                            onClick={handleExportExcel}
+                            disabled={exporting}
+                            fullWidth
+                            sx={{ justifyContent: 'flex-start', py: 1.5 }}
+                        >
+                            <Box sx={{ textAlign: 'left' }}>
+                                <Typography variant="body2" fontWeight={600}>Xuất Excel</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    Báo cáo đẹp để xem/in
+                                </Typography>
+                            </Box>
+                        </Button>
+
+                        {/* Export Backup */}
+                        <Button
+                            variant="outlined"
+                            startIcon={exporting ? <CircularProgress size={20} /> : <BackupIcon />}
+                            onClick={handleExportBackup}
+                            disabled={exporting}
+                            fullWidth
+                            sx={{ justifyContent: 'flex-start', py: 1.5 }}
+                        >
+                            <Box sx={{ textAlign: 'left' }}>
+                                <Typography variant="body2" fontWeight={600}>Sao lưu (ZIP)</Typography>
+                                <Typography variant="caption" color="text.secondary">
+                                    Lưu trữ & khôi phục sau này
+                                </Typography>
+                            </Box>
+                        </Button>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setExportDialogOpen(false)}>Đóng</Button>
+                </DialogActions>
+            </Dialog>
+        </Box >
     );
 }
 

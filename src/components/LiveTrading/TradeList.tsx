@@ -21,6 +21,10 @@ import {
     DialogActions,
     Button,
     TextField,
+    FormControl,
+    InputLabel,
+    Select,
+    MenuItem,
 } from '@mui/material';
 import {
     Delete as DeleteIcon,
@@ -206,8 +210,17 @@ export function TradeList() {
     const { currentSession, deleteTrade } = useLiveSessionStore();
     const [selectedTrade, setSelectedTrade] = useState<LiveTrade | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
+    const [filterModel, setFilterModel] = useState<string>('all');
 
     const trades = currentSession?.trades || [];
+
+    // Get unique model names for filter dropdown
+    const modelNames = Array.from(new Set(trades.map(t => t.modelName))).sort();
+
+    // Filter trades by model
+    const filteredTrades = filterModel === 'all'
+        ? trades
+        : trades.filter(t => t.modelName === filterModel);
     const measurementMode = currentSession?.measurementMode || 'RR';
 
     const formatTime = (timestamp: number) => {
@@ -267,15 +280,30 @@ export function TradeList() {
                     borderColor: 'divider',
                 }}
             >
-                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2, gap: 2 }}>
                     <Typography variant="h5" sx={{ fontWeight: 600 }}>
                         Trades
                     </Typography>
-                    <Chip
-                        label={`${trades.length} trades`}
-                        size="small"
-                        variant="outlined"
-                    />
+                    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                        <FormControl size="small" sx={{ minWidth: 120 }}>
+                            <InputLabel>Model</InputLabel>
+                            <Select
+                                value={filterModel}
+                                label="Model"
+                                onChange={(e) => setFilterModel(e.target.value)}
+                            >
+                                <MenuItem value="all">Tất cả</MenuItem>
+                                {modelNames.map((name) => (
+                                    <MenuItem key={name} value={name}>{name}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <Chip
+                            label={`${filteredTrades.length} trades`}
+                            size="small"
+                            variant="outlined"
+                        />
+                    </Box>
                 </Box>
 
                 <TableContainer sx={{ maxHeight: 300 }}>
@@ -291,7 +319,7 @@ export function TradeList() {
                             </TableRow>
                         </TableHead>
                         <TableBody>
-                            {[...trades].reverse().map((trade) => (
+                            {[...filteredTrades].reverse().map((trade) => (
                                 <TableRow key={trade.id} hover>
                                     <TableCell>
                                         <Typography variant="body2">
