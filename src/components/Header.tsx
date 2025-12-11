@@ -31,26 +31,15 @@ export function Header() {
         >
             <Stack direction="row" alignItems="center" spacing={1.5}>
                 <Box
+                    component="img"
+                    src="/logo.png"
+                    alt="Logo"
                     sx={{
                         width: 32,
                         height: 32,
                         borderRadius: 1,
-                        bgcolor: 'primary.main',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
                     }}
-                >
-                    <Typography
-                        sx={{
-                            color: 'white',
-                            fontWeight: 700,
-                            fontSize: '1rem',
-                        }}
-                    >
-                        T
-                    </Typography>
-                </Box>
+                />
                 <Typography
                     variant="h6"
                     sx={{

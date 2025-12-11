@@ -161,7 +161,7 @@ interface ModelDialogProps {
     editModel?: TradingModel | null;
 }
 
-function ModelDialog({ open, onClose, editModel }: ModelDialogProps) {
+export function ModelDialog({ open, onClose, editModel }: ModelDialogProps) {
     const { addModel, updateModel } = useModelStore();
     const [name, setName] = useState('');
     const [factors, setFactors] = useState<string[]>([]);
@@ -292,19 +292,20 @@ function ModelDialog({ open, onClose, editModel }: ModelDialogProps) {
     );
 }
 
-export function ModelList() {
+interface ModelListProps {
+    onAddModel: () => void;
+    onEditModel: (model: TradingModel) => void;
+}
+
+export function ModelList({ onAddModel, onEditModel }: ModelListProps) {
     const { models, selectedModelId, selectModel, deleteModel, toggleFactor } = useModelStore();
-    const [dialogOpen, setDialogOpen] = useState(false);
-    const [editingModel, setEditingModel] = useState<TradingModel | null>(null);
 
     const handleEdit = (model: TradingModel) => {
-        setEditingModel(model);
-        setDialogOpen(true);
+        onEditModel(model);
     };
 
     const handleAddNew = () => {
-        setEditingModel(null);
-        setDialogOpen(true);
+        onAddModel();
     };
 
     return (
@@ -330,7 +331,7 @@ export function ModelList() {
                             model={model}
                             isSelected={model.id === selectedModelId}
                             onSelect={() => selectModel(model.id === selectedModelId ? null : model.id)}
-                            onEdit={() => handleEdit(model)}
+                            onEdit={() => onEditModel(model)}
                             onDelete={() => deleteModel(model.id)}
                             onToggleFactor={(factor) => toggleFactor(model.id, factor)}
                         />
@@ -355,12 +356,6 @@ export function ModelList() {
                     Add Model
                 </Button>
             </Box>
-
-            <ModelDialog
-                open={dialogOpen}
-                onClose={() => setDialogOpen(false)}
-                editModel={editingModel}
-            />
         </>
     );
 }

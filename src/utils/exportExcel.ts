@@ -6,14 +6,26 @@ import { LiveSession, LiveTrade } from '@/types';
 
 // Helper function to download blob with proper filename
 function downloadBlob(blob: Blob, fileName: string) {
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    // Create a fresh blob with explicit type to ensure proper MIME type
+    const url = URL.createObjectURL(blob);
+
+    // Create invisible anchor
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName; // This sets the filename
+
+    // Append, click, and cleanup
+    document.body.appendChild(a);
+    a.click();
+
+    // Use requestAnimationFrame for cleanup to ensure download starts
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+    });
 }
 
 // Format value based on measurement mode
@@ -59,8 +71,9 @@ export async function exportTestSessionToExcel(
     // Session info
     overviewSheet.addRow(['THÔNG TIN PHIÊN TEST']);
     overviewSheet.getRow(1).font = { bold: true, size: 14 };
+    overviewSheet.mergeCells('A1:C1');
     overviewSheet.addRow(['Tên phiên:', session.name]);
-    overviewSheet.addRow(['Mode:', session.measurementMode]);
+    overviewSheet.addRow(['Mode đo lường:', session.measurementMode === 'RR' ? 'Risk:Reward (R)' : session.measurementMode === '$' ? 'Dollar ($)' : 'Phần trăm (%)']);
     overviewSheet.addRow(['Bắt đầu:', formatDate(session.startTime)]);
     overviewSheet.addRow(['Kết thúc:', session.endTime ? formatDate(session.endTime) : 'Đang tiến hành']);
     overviewSheet.addRow([]);
@@ -73,17 +86,90 @@ export async function exportTestSessionToExcel(
     const totalValue = trades.reduce((sum, t) => {
         return sum + (t.result === 'win' ? t.measurementValue : -t.measurementValue);
     }, 0);
+    const winValue = trades.filter(t => t.result === 'win').reduce((sum, t) => sum + t.measurementValue, 0);
+    const lossValue = trades.filter(t => t.result === 'lose').reduce((sum, t) => sum + t.measurementValue, 0);
+    const avgTradeValue = trades.length > 0 ? trades.reduce((sum, t) => sum + t.measurementValue, 0) / trades.length : 0;
+    const avgWinValue = wins > 0 ? winValue / wins : 0;
+    const avgLossValue = losses > 0 ? lossValue / losses : 0;
 
-    overviewSheet.addRow(['THỐNG KÊ']);
+    // Calculate streaks
+    let maxWinStreak = 0, maxLossStreak = 0, currentWinStreak = 0, currentLossStreak = 0;
+    trades.forEach(t => {
+        if (t.result === 'win') {
+            currentWinStreak++;
+            currentLossStreak = 0;
+            maxWinStreak = Math.max(maxWinStreak, currentWinStreak);
+        } else {
+            currentLossStreak++;
+            currentWinStreak = 0;
+            maxLossStreak = Math.max(maxLossStreak, currentLossStreak);
+        }
+    });
+
+    // Find best model
+    const modelStatsForOverview: Record<string, { name: string; wins: number; total: number; value: number }> = {};
+    trades.forEach(trade => {
+        const factorNames = trade.factorIds.map(id => getFactorName(id)).join(' + ');
+        if (!modelStatsForOverview[trade.modelKey]) {
+            modelStatsForOverview[trade.modelKey] = { name: factorNames, wins: 0, total: 0, value: 0 };
+        }
+        modelStatsForOverview[trade.modelKey].total++;
+        if (trade.result === 'win') {
+            modelStatsForOverview[trade.modelKey].wins++;
+            modelStatsForOverview[trade.modelKey].value += trade.measurementValue;
+        } else {
+            modelStatsForOverview[trade.modelKey].value -= trade.measurementValue;
+        }
+    });
+    const bestModel = Object.values(modelStatsForOverview).sort((a, b) => {
+        const aRate = a.total > 0 ? a.wins / a.total : 0;
+        const bRate = b.total > 0 ? b.wins / b.total : 0;
+        return bRate - aRate;
+    })[0];
+
+    overviewSheet.addRow(['THỐNG KÊ TỔNG HỢP']);
     overviewSheet.getRow(7).font = { bold: true, size: 14 };
-    overviewSheet.addRow(['Tổng trades:', trades.length]);
-    overviewSheet.addRow(['Thắng:', wins]);
-    overviewSheet.addRow(['Thua:', losses]);
-    overviewSheet.addRow(['Win Rate:', `${winRate.toFixed(1)}%`]);
-    overviewSheet.addRow(['P/L:', formatValue(totalValue, session.measurementMode)]);
+    overviewSheet.mergeCells('A7:C7');
+    overviewSheet.addRow([]);
 
-    overviewSheet.getColumn(1).width = 15;
-    overviewSheet.getColumn(2).width = 30;
+    // Trade counts
+    overviewSheet.addRow(['Tổng số lệnh:', trades.length]);
+    overviewSheet.addRow(['Lệnh thắng:', wins, `(${winRate.toFixed(1)}%)`]);
+    overviewSheet.addRow(['Lệnh thua:', losses, `(${trades.length > 0 ? ((losses / trades.length) * 100).toFixed(1) : 0}%)`]);
+    overviewSheet.addRow([]);
+
+    // Values
+    overviewSheet.addRow(['GIÁ TRỊ']);
+    overviewSheet.getRow(overviewSheet.rowCount).font = { bold: true, size: 12 };
+    overviewSheet.addRow(['Tổng P/L:', formatValue(totalValue, session.measurementMode), totalValue >= 0 ? '✓ Lời' : '✗ Lỗ']);
+    overviewSheet.getCell(`B${overviewSheet.rowCount}`).font = { bold: true, color: { argb: totalValue >= 0 ? 'FF2E7D32' : 'FFC62828' } };
+    overviewSheet.addRow(['Tổng thắng:', formatValue(winValue, session.measurementMode)]);
+    overviewSheet.addRow(['Tổng thua:', formatValue(lossValue, session.measurementMode)]);
+    overviewSheet.addRow(['Trung bình/lệnh:', formatValue(avgTradeValue, session.measurementMode)]);
+    overviewSheet.addRow(['TB lệnh thắng:', formatValue(avgWinValue, session.measurementMode)]);
+    overviewSheet.addRow(['TB lệnh thua:', formatValue(avgLossValue, session.measurementMode)]);
+    overviewSheet.addRow([]);
+
+    // Streaks
+    overviewSheet.addRow(['STREAKS']);
+    overviewSheet.getRow(overviewSheet.rowCount).font = { bold: true, size: 12 };
+    overviewSheet.addRow(['Chuỗi thắng dài nhất:', maxWinStreak, 'lệnh']);
+    overviewSheet.addRow(['Chuỗi thua dài nhất:', maxLossStreak, 'lệnh']);
+    overviewSheet.addRow([]);
+
+    // Best Model
+    if (bestModel) {
+        overviewSheet.addRow(['🏆 MODEL HIỆU QUẢ NHẤT']);
+        overviewSheet.getRow(overviewSheet.rowCount).font = { bold: true, size: 12 };
+        overviewSheet.addRow(['Tên Model:', bestModel.name]);
+        overviewSheet.addRow(['Win Rate:', `${bestModel.total > 0 ? ((bestModel.wins / bestModel.total) * 100).toFixed(1) : 0}%`]);
+        overviewSheet.addRow(['P/L:', formatValue(bestModel.value, session.measurementMode)]);
+        overviewSheet.addRow(['Số lệnh:', bestModel.total]);
+    }
+
+    overviewSheet.getColumn(1).width = 22;
+    overviewSheet.getColumn(2).width = 35;
+    overviewSheet.getColumn(3).width = 15;
 
     // === SHEET 2: Danh sách trades ===
     const tradesSheet = workbook.addWorksheet('Trades');
@@ -154,10 +240,10 @@ export async function exportTestSessionToExcel(
     // Freeze header row
     tradesSheet.views = [{ state: 'frozen', ySplit: 1 }];
 
-    // === SHEET 3: Thống kê Model ===
-    const modelStatsSheet = workbook.addWorksheet('Thống kê Model');
+    // === SHEET 3: Phân Tích Model (Model Analysis) ===
+    const analysisSheet = workbook.addWorksheet('Phân Tích Model');
 
-    // Calculate model stats
+    // Calculate comprehensive model stats
     const modelStatsMap: Record<string, {
         modelKey: string;
         factorNames: string;
@@ -168,6 +254,10 @@ export async function exportTestSessionToExcel(
         totalValue: number;
         winValue: number;
         lossValue: number;
+        avgWin: number;
+        avgLoss: number;
+        realRR: number;
+        expectancy: number;
     }> = {};
 
     trades.forEach(trade => {
@@ -183,6 +273,10 @@ export async function exportTestSessionToExcel(
                 totalValue: 0,
                 winValue: 0,
                 lossValue: 0,
+                avgWin: 0,
+                avgLoss: 0,
+                realRR: 0,
+                expectancy: 0,
             };
         }
 
@@ -198,21 +292,147 @@ export async function exportTestSessionToExcel(
             stats.totalValue -= trade.measurementValue;
         }
         stats.winRate = (stats.wins / stats.totalTrades) * 100;
+        stats.avgWin = stats.wins > 0 ? stats.winValue / stats.wins : 0;
+        stats.avgLoss = stats.losses > 0 ? stats.lossValue / stats.losses : 1;
+        stats.realRR = stats.avgLoss > 0 ? stats.avgWin / stats.avgLoss : stats.avgWin;
+        const wr = stats.winRate / 100;
+        stats.expectancy = (wr * Math.abs(stats.avgWin)) - (1 - wr);
     });
 
     // Sort by win rate
     const modelStats = Object.values(modelStatsMap).sort((a, b) => b.winRate - a.winRate);
+    const bestModelStats = modelStats[0];
 
-    // Header
-    const modelHeaders = ['#', 'Model', 'Trades', 'Thắng', 'Thua', 'Win Rate', 'Thắng ' + session.measurementMode, 'Thua ' + session.measurementMode, 'Tổng P/L'];
-    modelStatsSheet.addRow(modelHeaders);
-    modelStatsSheet.getRow(1).eachCell((cell) => {
+    // === Section 1: Model Tốt Nhất (Best Model) ===
+    analysisSheet.addRow(['🏆 MODEL TỐT NHẤT']);
+    analysisSheet.getRow(1).font = { bold: true, size: 14 };
+    analysisSheet.mergeCells('A1:E1');
+    analysisSheet.addRow([]);
+
+    if (bestModelStats) {
+        analysisSheet.addRow(['Tên Model:', bestModelStats.factorNames]);
+        analysisSheet.getCell('B3').font = { bold: true, size: 12, color: { argb: 'FF6D28D9' } };
+
+        const bestPL = bestModelStats.totalValue;
+        analysisSheet.addRow(['Win Rate:', `${bestModelStats.winRate.toFixed(1)}%`]);
+        analysisSheet.getCell('B4').font = { bold: true, color: { argb: 'FF2E7D32' } };
+
+        analysisSheet.addRow(['P/L:', formatValue(bestPL, session.measurementMode), bestPL >= 0 ? '✓ Lời' : '✗ Lỗ']);
+        analysisSheet.getCell('B5').font = { bold: true, color: { argb: bestPL >= 0 ? 'FF2E7D32' : 'FFC62828' } };
+
+        analysisSheet.addRow(['Số lệnh:', bestModelStats.totalTrades]);
+        analysisSheet.addRow(['Thắng / Thua:', `${bestModelStats.wins} / ${bestModelStats.losses}`]);
+        analysisSheet.addRow(['Real RR:', `${bestModelStats.realRR.toFixed(2)}R`]);
+        analysisSheet.getCell('B8').font = { bold: true, color: { argb: bestModelStats.realRR >= 1 ? 'FF2E7D32' : 'FFC62828' } };
+
+        analysisSheet.addRow(['Kỳ Vọng:', `${bestModelStats.expectancy >= 0 ? '+' : ''}${bestModelStats.expectancy.toFixed(2)}`]);
+        analysisSheet.getCell('B9').font = { bold: true, color: { argb: bestModelStats.expectancy >= 0 ? 'FF1976D2' : 'FFC62828' } };
+    }
+
+    analysisSheet.addRow([]);
+    analysisSheet.addRow([]);
+
+    // === Section 2: Hiệu Quả Giao Dịch (Trading Efficiency - Real RR) ===
+    const efficiencyStartRow = analysisSheet.rowCount + 1;
+    analysisSheet.addRow(['💰 HIỆU QUẢ GIAO DỊCH (Real RR)']);
+    analysisSheet.getRow(efficiencyStartRow).font = { bold: true, size: 14 };
+    analysisSheet.mergeCells(`A${efficiencyStartRow}:E${efficiencyStartRow}`);
+    analysisSheet.addRow([]);
+
+    // Sort by RR for this section
+    const statsByRR = [...modelStats].sort((a, b) => b.realRR - a.realRR);
+
+    const rrHeaders = ['#', 'Model', 'TB Thắng', 'TB Thua', 'Real RR'];
+    analysisSheet.addRow(rrHeaders);
+    analysisSheet.getRow(analysisSheet.rowCount).eachCell((cell) => {
         cell.style = headerStyle;
     });
 
-    // Data rows
+    statsByRR.forEach((stat, index) => {
+        const row = analysisSheet.addRow([
+            index + 1,
+            stat.factorNames,
+            formatValue(stat.avgWin, session.measurementMode),
+            formatValue(stat.avgLoss, session.measurementMode),
+            `${stat.realRR.toFixed(2)}R`,
+        ]);
+
+        const rrCell = row.getCell(5);
+        if (stat.realRR >= 1) {
+            rrCell.font = { bold: true, color: { argb: 'FF2E7D32' } };
+        } else {
+            rrCell.font = { bold: true, color: { argb: 'FFC62828' } };
+        }
+
+        // Highlight best
+        if (index === 0) {
+            row.eachCell((cell) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
+            });
+        }
+    });
+
+    analysisSheet.addRow([]);
+    analysisSheet.addRow([]);
+
+    // === Section 3: Kỳ Vọng (Expectancy) ===
+    const expStartRow = analysisSheet.rowCount + 1;
+    analysisSheet.addRow(['🎯 KỲ VỌNG (Expectancy)']);
+    analysisSheet.getRow(expStartRow).font = { bold: true, size: 14 };
+    analysisSheet.mergeCells(`A${expStartRow}:E${expStartRow}`);
+    analysisSheet.addRow([]);
+
+    // Sort by expectancy for this section
+    const statsByExp = [...modelStats].sort((a, b) => b.expectancy - a.expectancy);
+
+    const expHeaders = ['#', 'Model', 'Win Rate', 'TB Thắng', 'Kỳ Vọng'];
+    analysisSheet.addRow(expHeaders);
+    analysisSheet.getRow(analysisSheet.rowCount).eachCell((cell) => {
+        cell.style = headerStyle;
+    });
+
+    statsByExp.forEach((stat, index) => {
+        const row = analysisSheet.addRow([
+            index + 1,
+            stat.factorNames,
+            `${stat.winRate.toFixed(1)}%`,
+            formatValue(stat.avgWin, session.measurementMode),
+            `${stat.expectancy >= 0 ? '+' : ''}${stat.expectancy.toFixed(2)}`,
+        ]);
+
+        const expCell = row.getCell(5);
+        if (stat.expectancy >= 0) {
+            expCell.font = { bold: true, color: { argb: 'FF1976D2' } };
+        } else {
+            expCell.font = { bold: true, color: { argb: 'FFC62828' } };
+        }
+
+        // Highlight best
+        if (index === 0) {
+            row.eachCell((cell) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
+            });
+        }
+    });
+
+    analysisSheet.addRow([]);
+    analysisSheet.addRow([]);
+
+    // === Section 4: Bảng Xếp Hạng Model (Full Rankings) ===
+    const rankStartRow = analysisSheet.rowCount + 1;
+    analysisSheet.addRow(['📋 BẢNG XẾP HẠNG MODEL']);
+    analysisSheet.getRow(rankStartRow).font = { bold: true, size: 14 };
+    analysisSheet.mergeCells(`A${rankStartRow}:I${rankStartRow}`);
+    analysisSheet.addRow([]);
+
+    const rankHeaders = ['#', 'Model', 'Trades', 'Thắng', 'Thua', 'Win Rate', `Thắng ${session.measurementMode}`, `Thua ${session.measurementMode}`, 'Tổng P/L', 'Real RR', 'Kỳ Vọng'];
+    analysisSheet.addRow(rankHeaders);
+    analysisSheet.getRow(analysisSheet.rowCount).eachCell((cell) => {
+        cell.style = headerStyle;
+    });
+
     modelStats.forEach((stat, index) => {
-        const row = modelStatsSheet.addRow([
+        const row = analysisSheet.addRow([
             index + 1,
             stat.factorNames,
             stat.totalTrades,
@@ -222,11 +442,15 @@ export async function exportTestSessionToExcel(
             formatValue(stat.winValue, session.measurementMode),
             formatValue(stat.lossValue, session.measurementMode),
             formatValue(stat.totalValue, session.measurementMode),
+            `${stat.realRR.toFixed(2)}R`,
+            `${stat.expectancy >= 0 ? '+' : ''}${stat.expectancy.toFixed(2)}`,
         ]);
 
         // Color coding
         const winRateCell = row.getCell(6);
         const plCell = row.getCell(9);
+        const rrCell = row.getCell(10);
+        const expCell = row.getCell(11);
 
         if (stat.winRate >= 50) {
             winRateCell.font = { color: { argb: 'FF2E7D32' }, bold: true };
@@ -240,26 +464,40 @@ export async function exportTestSessionToExcel(
             plCell.font = { color: { argb: 'FFC62828' }, bold: true };
         }
 
+        if (stat.realRR >= 1) {
+            rrCell.font = { color: { argb: 'FF2E7D32' }, bold: true };
+        } else {
+            rrCell.font = { color: { argb: 'FFC62828' }, bold: true };
+        }
+
+        if (stat.expectancy >= 0) {
+            expCell.font = { color: { argb: 'FF1976D2' }, bold: true };
+        } else {
+            expCell.font = { color: { argb: 'FFC62828' }, bold: true };
+        }
+
         // Highlight best model
         if (index === 0) {
             row.eachCell((cell) => {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
             });
         }
     });
 
-    // Column widths
-    modelStatsSheet.getColumn(1).width = 5;
-    modelStatsSheet.getColumn(2).width = 40;
-    modelStatsSheet.getColumn(3).width = 8;
-    modelStatsSheet.getColumn(4).width = 8;
-    modelStatsSheet.getColumn(5).width = 8;
-    modelStatsSheet.getColumn(6).width = 10;
-    modelStatsSheet.getColumn(7).width = 12;
-    modelStatsSheet.getColumn(8).width = 12;
-    modelStatsSheet.getColumn(9).width = 12;
+    // Column widths for analysis sheet
+    analysisSheet.getColumn(1).width = 5;
+    analysisSheet.getColumn(2).width = 40;
+    analysisSheet.getColumn(3).width = 12;
+    analysisSheet.getColumn(4).width = 10;
+    analysisSheet.getColumn(5).width = 10;
+    analysisSheet.getColumn(6).width = 10;
+    analysisSheet.getColumn(7).width = 12;
+    analysisSheet.getColumn(8).width = 12;
+    analysisSheet.getColumn(9).width = 12;
+    analysisSheet.getColumn(10).width = 10;
+    analysisSheet.getColumn(11).width = 10;
 
-    modelStatsSheet.views = [{ state: 'frozen', ySplit: 1 }];
+    analysisSheet.views = [{ state: 'frozen', ySplit: 0 }];
 
     // Generate and download
     const buffer = await workbook.xlsx.writeBuffer();
@@ -285,7 +523,8 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
 
     overviewSheet.addRow(['THÔNG TIN PHIÊN THỰC CHIẾN']);
     overviewSheet.getRow(1).font = { bold: true, size: 14 };
-    overviewSheet.addRow(['Mode:', session.measurementMode]);
+    overviewSheet.mergeCells('A1:C1');
+    overviewSheet.addRow(['Mode đo lường:', session.measurementMode === 'RR' ? 'Risk:Reward (R)' : session.measurementMode === '$' ? 'Dollar ($)' : 'Phần trăm (%)']);
     overviewSheet.addRow(['Bắt đầu:', formatDate(session.startTime)]);
     overviewSheet.addRow(['Kết thúc:', session.endTime ? formatDate(session.endTime) : 'Đang tiến hành']);
     overviewSheet.addRow([]);
@@ -297,17 +536,89 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
     const totalValue = trades.reduce((sum, t) => {
         return sum + (t.result === 'win' ? t.measurementValue : -t.measurementValue);
     }, 0);
+    const winValue = trades.filter(t => t.result === 'win').reduce((sum, t) => sum + t.measurementValue, 0);
+    const lossValue = trades.filter(t => t.result === 'lose').reduce((sum, t) => sum + t.measurementValue, 0);
+    const avgTradeValue = trades.length > 0 ? trades.reduce((sum, t) => sum + t.measurementValue, 0) / trades.length : 0;
+    const avgWinValue = wins > 0 ? winValue / wins : 0;
+    const avgLossValue = losses > 0 ? lossValue / losses : 0;
 
-    overviewSheet.addRow(['THỐNG KÊ']);
+    // Calculate streaks
+    let maxWinStreak = 0, maxLossStreak = 0, currentWinStreak = 0, currentLossStreak = 0;
+    trades.forEach(t => {
+        if (t.result === 'win') {
+            currentWinStreak++;
+            currentLossStreak = 0;
+            maxWinStreak = Math.max(maxWinStreak, currentWinStreak);
+        } else {
+            currentLossStreak++;
+            currentWinStreak = 0;
+            maxLossStreak = Math.max(maxLossStreak, currentLossStreak);
+        }
+    });
+
+    // Find best model
+    const modelStatsForOverview: Record<string, { name: string; wins: number; total: number; value: number }> = {};
+    trades.forEach(trade => {
+        if (!modelStatsForOverview[trade.modelName]) {
+            modelStatsForOverview[trade.modelName] = { name: trade.modelName, wins: 0, total: 0, value: 0 };
+        }
+        modelStatsForOverview[trade.modelName].total++;
+        if (trade.result === 'win') {
+            modelStatsForOverview[trade.modelName].wins++;
+            modelStatsForOverview[trade.modelName].value += trade.measurementValue;
+        } else {
+            modelStatsForOverview[trade.modelName].value -= trade.measurementValue;
+        }
+    });
+    const bestModel = Object.values(modelStatsForOverview).sort((a, b) => {
+        const aRate = a.total > 0 ? a.wins / a.total : 0;
+        const bRate = b.total > 0 ? b.wins / b.total : 0;
+        return bRate - aRate;
+    })[0];
+
+    overviewSheet.addRow(['THỐNG KÊ TỔNG HỢP']);
     overviewSheet.getRow(6).font = { bold: true, size: 14 };
-    overviewSheet.addRow(['Tổng trades:', trades.length]);
-    overviewSheet.addRow(['Thắng:', wins]);
-    overviewSheet.addRow(['Thua:', losses]);
-    overviewSheet.addRow(['Win Rate:', `${winRate.toFixed(1)}%`]);
-    overviewSheet.addRow(['P/L:', formatValue(totalValue, session.measurementMode)]);
+    overviewSheet.mergeCells('A6:C6');
+    overviewSheet.addRow([]);
 
-    overviewSheet.getColumn(1).width = 15;
-    overviewSheet.getColumn(2).width = 30;
+    // Trade counts
+    overviewSheet.addRow(['Tổng số lệnh:', trades.length]);
+    overviewSheet.addRow(['Lệnh thắng:', wins, `(${winRate.toFixed(1)}%)`]);
+    overviewSheet.addRow(['Lệnh thua:', losses, `(${trades.length > 0 ? ((losses / trades.length) * 100).toFixed(1) : 0}%)`]);
+    overviewSheet.addRow([]);
+
+    // Values
+    overviewSheet.addRow(['GIÁ TRỊ']);
+    overviewSheet.getRow(overviewSheet.rowCount).font = { bold: true, size: 12 };
+    overviewSheet.addRow(['Tổng P/L:', formatValue(totalValue, session.measurementMode), totalValue >= 0 ? '✓ Lời' : '✗ Lỗ']);
+    overviewSheet.getCell(`B${overviewSheet.rowCount}`).font = { bold: true, color: { argb: totalValue >= 0 ? 'FF2E7D32' : 'FFC62828' } };
+    overviewSheet.addRow(['Tổng thắng:', formatValue(winValue, session.measurementMode)]);
+    overviewSheet.addRow(['Tổng thua:', formatValue(lossValue, session.measurementMode)]);
+    overviewSheet.addRow(['Trung bình/lệnh:', formatValue(avgTradeValue, session.measurementMode)]);
+    overviewSheet.addRow(['TB lệnh thắng:', formatValue(avgWinValue, session.measurementMode)]);
+    overviewSheet.addRow(['TB lệnh thua:', formatValue(avgLossValue, session.measurementMode)]);
+    overviewSheet.addRow([]);
+
+    // Streaks
+    overviewSheet.addRow(['STREAKS']);
+    overviewSheet.getRow(overviewSheet.rowCount).font = { bold: true, size: 12 };
+    overviewSheet.addRow(['Chuỗi thắng dài nhất:', maxWinStreak, 'lệnh']);
+    overviewSheet.addRow(['Chuỗi thua dài nhất:', maxLossStreak, 'lệnh']);
+    overviewSheet.addRow([]);
+
+    // Best Model
+    if (bestModel) {
+        overviewSheet.addRow(['🏆 MODEL HIỆU QUẢ NHẤT']);
+        overviewSheet.getRow(overviewSheet.rowCount).font = { bold: true, size: 12 };
+        overviewSheet.addRow(['Tên Model:', bestModel.name]);
+        overviewSheet.addRow(['Win Rate:', `${bestModel.total > 0 ? ((bestModel.wins / bestModel.total) * 100).toFixed(1) : 0}%`]);
+        overviewSheet.addRow(['P/L:', formatValue(bestModel.value, session.measurementMode)]);
+        overviewSheet.addRow(['Số lệnh:', bestModel.total]);
+    }
+
+    overviewSheet.getColumn(1).width = 22;
+    overviewSheet.getColumn(2).width = 35;
+    overviewSheet.getColumn(3).width = 15;
 
     // === SHEET 2: Trades ===
     const tradesSheet = workbook.addWorksheet('Trades');
@@ -373,10 +684,10 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
 
     tradesSheet.views = [{ state: 'frozen', ySplit: 1 }];
 
-    // === SHEET 3: Thống kê Model ===
-    const modelStatsSheet = workbook.addWorksheet('Thống kê Model');
+    // === SHEET 3: Phân Tích Model (Model Analysis) ===
+    const analysisSheet = workbook.addWorksheet('Phân Tích Model');
 
-    // Calculate model stats
+    // Calculate comprehensive model stats
     const modelStatsMap: Record<string, {
         modelName: string;
         totalTrades: number;
@@ -386,6 +697,10 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
         totalValue: number;
         winValue: number;
         lossValue: number;
+        avgWin: number;
+        avgLoss: number;
+        realRR: number;
+        expectancy: number;
     }> = {};
 
     trades.forEach(trade => {
@@ -399,6 +714,10 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
                 totalValue: 0,
                 winValue: 0,
                 lossValue: 0,
+                avgWin: 0,
+                avgLoss: 0,
+                realRR: 0,
+                expectancy: 0,
             };
         }
 
@@ -414,21 +733,158 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
             stats.totalValue -= trade.measurementValue;
         }
         stats.winRate = (stats.wins / stats.totalTrades) * 100;
+        stats.avgWin = stats.wins > 0 ? stats.winValue / stats.wins : 0;
+        stats.avgLoss = stats.losses > 0 ? stats.lossValue / stats.losses : 1;
+        stats.realRR = stats.avgLoss > 0 ? stats.avgWin / stats.avgLoss : stats.avgWin;
+        const wr = stats.winRate / 100;
+        stats.expectancy = (wr * Math.abs(stats.avgWin)) - (1 - wr);
     });
 
     // Sort by win rate
     const modelStats = Object.values(modelStatsMap).sort((a, b) => b.winRate - a.winRate);
+    const bestModelStats = modelStats[0];
 
-    // Header
-    const modelHeaders = ['#', 'Model', 'Trades', 'Thắng', 'Thua', 'Win Rate', 'Thắng ' + session.measurementMode, 'Thua ' + session.measurementMode, 'Tổng P/L'];
-    modelStatsSheet.addRow(modelHeaders);
-    modelStatsSheet.getRow(1).eachCell((cell) => {
+    // Gold header style
+    const goldStyle: Partial<ExcelJS.Style> = {
+        font: { bold: true, color: { argb: 'FF856404' } },
+        fill: { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } },
+    };
+
+    // Section header style
+    const sectionStyle: Partial<ExcelJS.Style> = {
+        font: { bold: true, size: 12, color: { argb: 'FF1976D2' } },
+    };
+
+    // === Section 1: Model Tốt Nhất (Best Model) ===
+    analysisSheet.addRow(['🏆 MODEL TỐT NHẤT']);
+    analysisSheet.getRow(1).font = { bold: true, size: 14 };
+    analysisSheet.mergeCells('A1:E1');
+    analysisSheet.addRow([]);
+
+    if (bestModelStats) {
+        analysisSheet.addRow(['Tên Model:', bestModelStats.modelName]);
+        analysisSheet.getCell('B3').font = { bold: true, size: 12, color: { argb: 'FF6D28D9' } };
+
+        const bestPL = bestModelStats.totalValue;
+        analysisSheet.addRow(['Win Rate:', `${bestModelStats.winRate.toFixed(1)}%`]);
+        analysisSheet.getCell('B4').font = { bold: true, color: { argb: 'FF2E7D32' } };
+
+        analysisSheet.addRow(['P/L:', formatValue(bestPL, session.measurementMode), bestPL >= 0 ? '✓ Lời' : '✗ Lỗ']);
+        analysisSheet.getCell('B5').font = { bold: true, color: { argb: bestPL >= 0 ? 'FF2E7D32' : 'FFC62828' } };
+
+        analysisSheet.addRow(['Số lệnh:', bestModelStats.totalTrades]);
+        analysisSheet.addRow(['Thắng / Thua:', `${bestModelStats.wins} / ${bestModelStats.losses}`]);
+        analysisSheet.addRow(['Real RR:', `${bestModelStats.realRR.toFixed(2)}R`]);
+        analysisSheet.getCell('B8').font = { bold: true, color: { argb: bestModelStats.realRR >= 1 ? 'FF2E7D32' : 'FFC62828' } };
+
+        analysisSheet.addRow(['Kỳ Vọng:', `${bestModelStats.expectancy >= 0 ? '+' : ''}${bestModelStats.expectancy.toFixed(2)}`]);
+        analysisSheet.getCell('B9').font = { bold: true, color: { argb: bestModelStats.expectancy >= 0 ? 'FF1976D2' : 'FFC62828' } };
+    }
+
+    analysisSheet.addRow([]);
+    analysisSheet.addRow([]);
+
+    // === Section 2: Hiệu Quả Giao Dịch (Trading Efficiency - Real RR) ===
+    const efficiencyStartRow = analysisSheet.rowCount + 1;
+    analysisSheet.addRow(['💰 HIỆU QUẢ GIAO DỊCH (Real RR)']);
+    analysisSheet.getRow(efficiencyStartRow).font = { bold: true, size: 14 };
+    analysisSheet.mergeCells(`A${efficiencyStartRow}:E${efficiencyStartRow}`);
+    analysisSheet.addRow([]);
+
+    // Sort by RR for this section
+    const statsByRR = [...modelStats].sort((a, b) => b.realRR - a.realRR);
+
+    const rrHeaders = ['#', 'Model', 'TB Thắng', 'TB Thua', 'Real RR'];
+    analysisSheet.addRow(rrHeaders);
+    analysisSheet.getRow(analysisSheet.rowCount).eachCell((cell) => {
         cell.style = headerStyle;
     });
 
-    // Data rows
+    statsByRR.forEach((stat, index) => {
+        const row = analysisSheet.addRow([
+            index + 1,
+            stat.modelName,
+            formatValue(stat.avgWin, session.measurementMode),
+            formatValue(stat.avgLoss, session.measurementMode),
+            `${stat.realRR.toFixed(2)}R`,
+        ]);
+
+        const rrCell = row.getCell(5);
+        if (stat.realRR >= 1) {
+            rrCell.font = { bold: true, color: { argb: 'FF2E7D32' } };
+        } else {
+            rrCell.font = { bold: true, color: { argb: 'FFC62828' } };
+        }
+
+        // Highlight best
+        if (index === 0) {
+            row.eachCell((cell) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE8F5E9' } };
+            });
+        }
+    });
+
+    analysisSheet.addRow([]);
+    analysisSheet.addRow([]);
+
+    // === Section 3: Kỳ Vọng (Expectancy) ===
+    const expStartRow = analysisSheet.rowCount + 1;
+    analysisSheet.addRow(['🎯 KỲ VỌNG (Expectancy)']);
+    analysisSheet.getRow(expStartRow).font = { bold: true, size: 14 };
+    analysisSheet.mergeCells(`A${expStartRow}:E${expStartRow}`);
+    analysisSheet.addRow([]);
+
+    // Sort by expectancy for this section
+    const statsByExp = [...modelStats].sort((a, b) => b.expectancy - a.expectancy);
+
+    const expHeaders = ['#', 'Model', 'Win Rate', 'TB Thắng', 'Kỳ Vọng'];
+    analysisSheet.addRow(expHeaders);
+    analysisSheet.getRow(analysisSheet.rowCount).eachCell((cell) => {
+        cell.style = headerStyle;
+    });
+
+    statsByExp.forEach((stat, index) => {
+        const row = analysisSheet.addRow([
+            index + 1,
+            stat.modelName,
+            `${stat.winRate.toFixed(1)}%`,
+            formatValue(stat.avgWin, session.measurementMode),
+            `${stat.expectancy >= 0 ? '+' : ''}${stat.expectancy.toFixed(2)}`,
+        ]);
+
+        const expCell = row.getCell(5);
+        if (stat.expectancy >= 0) {
+            expCell.font = { bold: true, color: { argb: 'FF1976D2' } };
+        } else {
+            expCell.font = { bold: true, color: { argb: 'FFC62828' } };
+        }
+
+        // Highlight best
+        if (index === 0) {
+            row.eachCell((cell) => {
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
+            });
+        }
+    });
+
+    analysisSheet.addRow([]);
+    analysisSheet.addRow([]);
+
+    // === Section 4: Bảng Xếp Hạng Model (Full Rankings) ===
+    const rankStartRow = analysisSheet.rowCount + 1;
+    analysisSheet.addRow(['📋 BẢNG XẾP HẠNG MODEL']);
+    analysisSheet.getRow(rankStartRow).font = { bold: true, size: 14 };
+    analysisSheet.mergeCells(`A${rankStartRow}:I${rankStartRow}`);
+    analysisSheet.addRow([]);
+
+    const rankHeaders = ['#', 'Model', 'Trades', 'Thắng', 'Thua', 'Win Rate', `Thắng ${session.measurementMode}`, `Thua ${session.measurementMode}`, 'Tổng P/L', 'Real RR', 'Kỳ Vọng'];
+    analysisSheet.addRow(rankHeaders);
+    analysisSheet.getRow(analysisSheet.rowCount).eachCell((cell) => {
+        cell.style = headerStyle;
+    });
+
     modelStats.forEach((stat, index) => {
-        const row = modelStatsSheet.addRow([
+        const row = analysisSheet.addRow([
             index + 1,
             stat.modelName,
             stat.totalTrades,
@@ -438,11 +894,15 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
             formatValue(stat.winValue, session.measurementMode),
             formatValue(stat.lossValue, session.measurementMode),
             formatValue(stat.totalValue, session.measurementMode),
+            `${stat.realRR.toFixed(2)}R`,
+            `${stat.expectancy >= 0 ? '+' : ''}${stat.expectancy.toFixed(2)}`,
         ]);
 
         // Color coding
         const winRateCell = row.getCell(6);
         const plCell = row.getCell(9);
+        const rrCell = row.getCell(10);
+        const expCell = row.getCell(11);
 
         if (stat.winRate >= 50) {
             winRateCell.font = { color: { argb: 'FF2E7D32' }, bold: true };
@@ -456,26 +916,40 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
             plCell.font = { color: { argb: 'FFC62828' }, bold: true };
         }
 
+        if (stat.realRR >= 1) {
+            rrCell.font = { color: { argb: 'FF2E7D32' }, bold: true };
+        } else {
+            rrCell.font = { color: { argb: 'FFC62828' }, bold: true };
+        }
+
+        if (stat.expectancy >= 0) {
+            expCell.font = { color: { argb: 'FF1976D2' }, bold: true };
+        } else {
+            expCell.font = { color: { argb: 'FFC62828' }, bold: true };
+        }
+
         // Highlight best model
         if (index === 0) {
             row.eachCell((cell) => {
-                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFE3F2FD' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF3CD' } };
             });
         }
     });
 
-    // Column widths
-    modelStatsSheet.getColumn(1).width = 5;
-    modelStatsSheet.getColumn(2).width = 30;
-    modelStatsSheet.getColumn(3).width = 8;
-    modelStatsSheet.getColumn(4).width = 8;
-    modelStatsSheet.getColumn(5).width = 8;
-    modelStatsSheet.getColumn(6).width = 10;
-    modelStatsSheet.getColumn(7).width = 12;
-    modelStatsSheet.getColumn(8).width = 12;
-    modelStatsSheet.getColumn(9).width = 12;
+    // Column widths for analysis sheet
+    analysisSheet.getColumn(1).width = 5;
+    analysisSheet.getColumn(2).width = 30;
+    analysisSheet.getColumn(3).width = 12;
+    analysisSheet.getColumn(4).width = 10;
+    analysisSheet.getColumn(5).width = 10;
+    analysisSheet.getColumn(6).width = 10;
+    analysisSheet.getColumn(7).width = 12;
+    analysisSheet.getColumn(8).width = 12;
+    analysisSheet.getColumn(9).width = 12;
+    analysisSheet.getColumn(10).width = 10;
+    analysisSheet.getColumn(11).width = 10;
 
-    modelStatsSheet.views = [{ state: 'frozen', ySplit: 1 }];
+    analysisSheet.views = [{ state: 'frozen', ySplit: 0 }];
 
     const buffer = await workbook.xlsx.writeBuffer();
     const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });

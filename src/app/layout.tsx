@@ -7,6 +7,9 @@ export const metadata: Metadata = {
     description: 'A Notion-like application for simulating and analyzing trading models with beautiful charts and statistics.',
     keywords: ['trading', 'simulator', 'model', 'statistics', 'charts'],
     authors: [{ name: 'Trading Simulator' }],
+    icons: {
+        icon: '/favicon.svg',
+    },
 };
 
 export default function RootLayout({

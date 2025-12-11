@@ -7,14 +7,26 @@ import { Factor } from '@/types';
 
 // Helper function to download blob with proper filename
 function downloadBlob(blob: Blob, fileName: string) {
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    window.URL.revokeObjectURL(url);
+    // Create a fresh blob with explicit type to ensure proper MIME type
+    const url = URL.createObjectURL(blob);
+
+    // Create invisible anchor
+    const a = document.createElement('a');
+    a.style.display = 'none';
+    a.href = url;
+    a.download = fileName; // This sets the filename
+
+    // Append, click, and cleanup
+    document.body.appendChild(a);
+    a.click();
+
+    // Use requestAnimationFrame for cleanup to ensure download starts
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            URL.revokeObjectURL(url);
+            document.body.removeChild(a);
+        });
+    });
 }
 
 // ==================== BACKUP (EXPORT ZIP) ====================

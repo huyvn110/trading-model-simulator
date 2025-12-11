@@ -35,12 +35,15 @@ import {
 const TestResults = lazy(() => import('@/components/TestMode/TestResults'));
 const TestTrades = lazy(() => import('@/components/TestMode/TestTrades'));
 const TestCharts = lazy(() => import('@/components/TestMode/TestCharts'));
-const ModelList = lazy(() => import('@/components/LiveTrading/ModelList'));
 const TradePanel = lazy(() => import('@/components/LiveTrading/TradePanel'));
 const TradeList = lazy(() => import('@/components/LiveTrading/TradeList'));
 const ModelStats = lazy(() => import('@/components/LiveTrading/ModelStats'));
 const LiveCharts = lazy(() => import('@/components/LiveTrading/LiveCharts'));
 const LiveSessionHistory = lazy(() => import('@/components/LiveTrading/SessionHistory'));
+
+// Import ModelList and ModelDialog directly since we need to control dialog from page level
+import { ModelList, ModelDialog } from '@/components/LiveTrading/ModelList';
+import { TradingModel } from '@/types';
 
 // Loading component
 const LoadingFallback = () => (
@@ -86,6 +89,33 @@ export default function Home() {
     const [factorOpen, setFactorOpen] = useState(true);
     const [recorderOpen, setRecorderOpen] = useState(true);
     const [liveTradeOpen, setLiveTradeOpen] = useState(true);
+
+    // Model dialog state (lifted to close on mode switch)
+    const [modelDialogOpen, setModelDialogOpen] = useState(false);
+    const [editingModel, setEditingModel] = useState<TradingModel | null>(null);
+
+    // Close model dialog when mode changes
+    React.useEffect(() => {
+        console.log('Mode changed to:', appMode, '- closing dialog');
+        setModelDialogOpen(false);
+        setEditingModel(null);
+    }, [appMode]);
+
+    // Model dialog handlers
+    const handleAddModel = () => {
+        setEditingModel(null);
+        setModelDialogOpen(true);
+    };
+
+    const handleEditModel = (model: TradingModel) => {
+        setEditingModel(model);
+        setModelDialogOpen(true);
+    };
+
+    const handleCloseModelDialog = () => {
+        setModelDialogOpen(false);
+        setEditingModel(null);
+    };
 
     return (
         <Box
@@ -285,9 +315,7 @@ export default function Home() {
                                     </IconButton>
                                 </Stack>
                                 <Collapse in={liveTradeOpen}>
-                                    <Suspense fallback={<LoadingFallback />}>
-                                        <ModelList />
-                                    </Suspense>
+                                    <ModelList onAddModel={handleAddModel} onEditModel={handleEditModel} />
                                     <Suspense fallback={<LoadingFallback />}>
                                         <TradePanel />
                                     </Suspense>
@@ -349,22 +377,14 @@ export default function Home() {
                 )}
             </Container>
 
-            {/* Footer */}
-            <Box
-                component="footer"
-                sx={{
-                    py: 2,
-                    px: 3,
-                    textAlign: 'center',
-                    borderTop: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
-                    color: 'text.secondary',
-                    fontSize: '0.875rem',
-                }}
-            >
-                Trading Model Simulator © 2024
-            </Box>
+
+
+            {/* Model Dialog - rendered at page level for proper state control */}
+            <ModelDialog
+                open={modelDialogOpen}
+                onClose={handleCloseModelDialog}
+                editModel={editingModel}
+            />
         </Box>
     );
 }

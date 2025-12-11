@@ -94,9 +94,12 @@ export function SessionPanel() {
         if (!sessionToExport) return;
         setExporting(true);
         try {
+            console.log('Starting export for session:', sessionToExport.name);
             await exportTestSessionToExcel(sessionToExport, getFactorName);
+            console.log('Export completed successfully');
         } catch (error) {
             console.error('Export error:', error);
+            alert('Lỗi khi xuất Excel: ' + (error as Error).message);
         }
         setExporting(false);
     };
