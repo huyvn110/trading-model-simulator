@@ -3,10 +3,10 @@ import './globals.css';
 import ThemeRegistry from '@/components/ThemeRegistry';
 
 export const metadata: Metadata = {
-    title: 'Trading Model Simulator - Notion-like Interface',
-    description: 'A Notion-like application for simulating and analyzing trading models with beautiful charts and statistics.',
-    keywords: ['trading', 'simulator', 'model', 'statistics', 'charts'],
-    authors: [{ name: 'Trading Simulator' }],
+    title: 'Trade Tracker - Theo dõi giao dịch',
+    description: 'Ứng dụng theo dõi và phân tích giao dịch trading với biểu đồ và thống kê chuyên nghiệp.',
+    keywords: ['trading', 'trade tracker', 'journal', 'statistics', 'charts'],
+    authors: [{ name: 'Trade Tracker' }],
     icons: {
         icon: '/favicon.svg',
     },

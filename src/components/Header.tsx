@@ -47,7 +47,7 @@ export function Header() {
                         letterSpacing: '-0.01em',
                     }}
                 >
-                    Trading Model Simulator v2
+                    Trade Tracker
                 </Typography>
             </Stack>
 
