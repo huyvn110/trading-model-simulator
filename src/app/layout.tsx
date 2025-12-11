@@ -1,5 +1,6 @@
 import type { Metadata } from 'next';
 import './globals.css';
+import { SpeedInsights } from '@vercel/speed-insights/next';
 import ThemeRegistry from '@/components/ThemeRegistry';
 
 export const metadata: Metadata = {
@@ -21,6 +22,7 @@ export default function RootLayout({
         <html lang="en">
             <body>
                 <ThemeRegistry>{children}</ThemeRegistry>
+                <SpeedInsights />
             </body>
         </html>
     );
