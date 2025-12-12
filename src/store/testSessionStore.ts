@@ -336,6 +336,11 @@ export const useTestSessionStore = create<TestSessionState>()(
         }),
         {
             name: 'test-session-storage',
+            partialize: (state) => ({
+                measurementMode: state.measurementMode,
+                currentSession: state.currentSession,
+                sessions: state.sessions,
+            }),
         }
     )
 );

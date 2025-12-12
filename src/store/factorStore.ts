@@ -92,6 +92,9 @@ export const useFactorStore = create<FactorState>()(
         }),
         {
             name: 'factor-storage',
+            partialize: (state) => ({
+                factors: state.factors,
+            }),
         }
     )
 );

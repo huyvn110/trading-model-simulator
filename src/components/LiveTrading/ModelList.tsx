@@ -39,7 +39,7 @@ interface ModelItemProps {
     onToggleFactor: (factor: string) => void;
 }
 
-function ModelItem({ model, isSelected, onSelect, onEdit, onDelete, onToggleFactor }: ModelItemProps) {
+const ModelItem = React.memo(function ModelItem({ model, isSelected, onSelect, onEdit, onDelete, onToggleFactor }: ModelItemProps) {
     const [expanded, setExpanded] = useState(false);
     const checkedCount = model.checkedFactors?.length || 0;
     const totalFactors = model.factors.length;
@@ -153,7 +153,7 @@ function ModelItem({ model, isSelected, onSelect, onEdit, onDelete, onToggleFact
             </Collapse>
         </Box>
     );
-}
+});
 
 interface ModelDialogProps {
     open: boolean;

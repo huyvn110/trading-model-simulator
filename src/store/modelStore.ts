@@ -154,6 +154,17 @@ export const useModelStore = create<ModelState>()(
         }),
         {
             name: 'model-storage',
+            partialize: (state) => ({
+                // Only persist models without runtime checkedFactors state
+                models: state.models.map(m => ({
+                    id: m.id,
+                    name: m.name,
+                    factors: m.factors,
+                    order: m.order,
+                    checkedFactors: [], // Reset checkedFactors on persist
+                })),
+                selectedModelId: null, // Don't persist selection
+            }),
         }
     )
 );

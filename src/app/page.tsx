@@ -102,20 +102,20 @@ export default function Home() {
     }, [appMode]);
 
     // Model dialog handlers
-    const handleAddModel = () => {
+    const handleAddModel = useCallback(() => {
         setEditingModel(null);
         setModelDialogOpen(true);
-    };
+    }, []);
 
-    const handleEditModel = (model: TradingModel) => {
+    const handleEditModel = useCallback((model: TradingModel) => {
         setEditingModel(model);
         setModelDialogOpen(true);
-    };
+    }, []);
 
-    const handleCloseModelDialog = () => {
+    const handleCloseModelDialog = useCallback(() => {
         setModelDialogOpen(false);
         setEditingModel(null);
-    };
+    }, []);
 
     return (
         <Box
