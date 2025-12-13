@@ -1,16 +1,18 @@
 'use client';
 
-import React, { useContext } from 'react';
+import React, { useContext, useState } from 'react';
 import { Box, Typography, IconButton, Tooltip, Stack } from '@mui/material';
 import {
     DarkMode as DarkModeIcon,
     LightMode as LightModeIcon,
     GitHub as GitHubIcon,
+    TrendingUp as TrendingUpIcon,
 } from '@mui/icons-material';
 import { ThemeContext } from './ThemeRegistry';
 
 export function Header() {
     const { isDarkMode, toggleTheme } = useContext(ThemeContext);
+    const [logoError, setLogoError] = useState(false);
 
     return (
         <Box
@@ -30,16 +32,33 @@ export function Header() {
             }}
         >
             <Stack direction="row" alignItems="center" spacing={1.5}>
-                <Box
-                    component="img"
-                    src="/logo.png"
-                    alt="Logo"
-                    sx={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: 1,
-                    }}
-                />
+                {logoError ? (
+                    <Box
+                        sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 1,
+                            bgcolor: 'primary.main',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                        }}
+                    >
+                        <TrendingUpIcon sx={{ color: 'white', fontSize: 20 }} />
+                    </Box>
+                ) : (
+                    <Box
+                        component="img"
+                        src="/logo.png"
+                        alt="Logo"
+                        onError={() => setLogoError(true)}
+                        sx={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: 1,
+                        }}
+                    />
+                )}
                 <Typography
                     variant="h6"
                     sx={{
