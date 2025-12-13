@@ -119,14 +119,14 @@ export const useModelStore = create<ModelState>()(
                     const checkedCount = (updatedModel?.checkedFactors || []).length;
                     const totalFactors = updatedModel?.factors.length || 0;
 
-                    // Auto-select when all checked, auto-deselect when none checked
+                    // Auto-select when all checked, auto-deselect when not all checked
                     const allChecked = totalFactors > 0 && checkedCount === totalFactors;
-                    const noneChecked = checkedCount === 0;
 
                     let newSelectedId = state.selectedModelId;
                     if (allChecked) {
                         newSelectedId = modelId;
-                    } else if (noneChecked && state.selectedModelId === modelId) {
+                    } else if (state.selectedModelId === modelId) {
+                        // Deselect if any factor is unchecked
                         newSelectedId = null;
                     }
 
