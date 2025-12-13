@@ -1,6 +1,6 @@
 'use client';
 
-import React from 'react';
+import React, { useMemo } from 'react';
 import {
     Box,
     Paper,
@@ -28,10 +28,14 @@ export function TestResults() {
         return factor?.name || 'Unknown';
     };
 
-    const rawStats = getCurrentSessionStats(getFactorName);
-    // Sort by win rate (highest first)
-    const stats = [...rawStats].sort((a, b) => b.winRate - a.winRate);
-    const totals = getTotalStats();
+    // Use useMemo with proper dependencies to ensure re-render when session changes
+    const stats = useMemo(() => {
+        if (!currentSession) return [];
+        const rawStats = getCurrentSessionStats(getFactorName);
+        return [...rawStats].sort((a, b) => b.winRate - a.winRate);
+    }, [currentSession?.id, currentSession?.trades.length, factors]);
+
+    const totals = useMemo(() => getTotalStats(), [currentSession?.id, currentSession?.trades.length]);
     const measurementMode = currentSession?.measurementMode || 'RR';
 
     const formatValue = (value: number) => {

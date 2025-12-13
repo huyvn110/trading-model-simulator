@@ -59,7 +59,10 @@ export function SessionPanel() {
     const { factors } = useFactorStore();
 
     const [sessionName, setSessionName] = useState('');
-    const [sessionCounter, setSessionCounter] = useState(1);
+
+    // Duplicate name warning state
+    const [duplicateWarningOpen, setDuplicateWarningOpen] = useState(false);
+    const [duplicateNameInfo, setDuplicateNameInfo] = useState<{ original: string; unique: string } | null>(null);
 
     // Rename state
     const [renameDialogOpen, setRenameDialogOpen] = useState(false);
@@ -193,10 +196,22 @@ export function SessionPanel() {
     };
 
     const handleCreateSession = () => {
-        const name = sessionName.trim() || `Phiên Test ${sessionCounter}`;
+        // Generate unique name based on existing sessions count + 1
+        const nextNumber = sessions.length + 1;
+        const name = sessionName.trim() || `Phiên Test ${nextNumber}`;
+
+        // Check if session name already exists
+        const existingSession = sessions.find(s => s.name === name);
+        if (existingSession) {
+            // Show warning dialog - do NOT create session
+            setDuplicateNameInfo({ original: name, unique: '' });
+            setDuplicateWarningOpen(true);
+            // Keep the session name so user can edit it
+            return;
+        }
+
         createSession(name);
         setSessionName('');
-        setSessionCounter(sessionCounter + 1);
     };
 
     const formatDate = (timestamp: number) => {
@@ -353,75 +368,89 @@ export function SessionPanel() {
                     </Typography>
                 ) : (
                     <List sx={{ maxHeight: 200, overflow: 'auto' }} dense>
-                        {sessions.map((session) => (
-                            <ListItem
-                                key={session.id}
-                                sx={{
-                                    borderRadius: 1,
-                                    mb: 0.5,
-                                    bgcolor: session.id === currentSession?.id ? 'primary.50' : 'grey.50',
-                                    border: '1px solid',
-                                    borderColor: session.id === currentSession?.id ? 'primary.main' : 'transparent',
-                                    cursor: 'pointer',
-                                }}
-                                onClick={() => selectSession(session.id)}
-                            >
-                                {session.id === currentSession?.id && (
-                                    <ActiveIcon sx={{ color: 'primary.main', mr: 1, fontSize: 16 }} />
-                                )}
-                                <ListItemText
-                                    primary={
-                                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                            <Typography variant="body2" fontWeight={500}>
-                                                {session.name}
+                        {sessions.map((session) => {
+                            const isActive = session.id === currentSession?.id;
+                            const isEnded = !!session.endTime;
+
+                            return (
+                                <ListItem
+                                    key={session.id}
+                                    sx={{
+                                        borderRadius: 1,
+                                        mb: 0.5,
+                                        bgcolor: isActive ? 'primary.50' : isEnded ? 'grey.100' : 'grey.50',
+                                        border: '1px solid',
+                                        borderColor: isActive ? 'primary.main' : 'transparent',
+                                        cursor: isEnded && !isActive ? 'default' : 'pointer',
+                                        opacity: isEnded && !isActive ? 0.7 : 1,
+                                    }}
+                                    onClick={() => !isEnded && selectSession(session.id)}
+                                >
+                                    {isActive && (
+                                        <ActiveIcon sx={{ color: 'primary.main', mr: 1, fontSize: 16 }} />
+                                    )}
+                                    <ListItemText
+                                        primary={
+                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                                                <Typography variant="body2" fontWeight={500}>
+                                                    {session.name}
+                                                </Typography>
+                                                <Chip
+                                                    label={session.measurementMode}
+                                                    size="small"
+                                                    sx={{ fontSize: '0.65rem', height: 18 }}
+                                                />
+                                                {isEnded && !isActive && (
+                                                    <Chip
+                                                        label="Đã kết thúc"
+                                                        size="small"
+                                                        color="default"
+                                                        sx={{ fontSize: '0.6rem', height: 16 }}
+                                                    />
+                                                )}
+                                            </Box>
+                                        }
+                                        secondary={
+                                            <Typography variant="caption" color="text.secondary">
+                                                {formatDate(session.startTime)} • {session.trades.length} trades
                                             </Typography>
-                                            <Chip
-                                                label={session.measurementMode}
+                                        }
+                                    />
+                                    <ListItemSecondaryAction>
+                                        <Tooltip title="Xuất/Nhập">
+                                            <IconButton
                                                 size="small"
-                                                sx={{ fontSize: '0.65rem', height: 18 }}
-                                            />
-                                        </Box>
-                                    }
-                                    secondary={
-                                        <Typography variant="caption" color="text.secondary">
-                                            {formatDate(session.startTime)} • {session.trades.length} trades
-                                        </Typography>
-                                    }
-                                />
-                                <ListItemSecondaryAction>
-                                    <Tooltip title="Xuất/Nhập">
-                                        <IconButton
-                                            size="small"
-                                            onClick={(e) => handleExportClick(session, e)}
-                                            sx={{ color: 'primary.main', mr: 0.5 }}
-                                        >
-                                            <ExportIcon fontSize="small" />
-                                        </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Đổi tên">
-                                        <IconButton
-                                            size="small"
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                handleRenameClick(session.id, session.name);
-                                            }}
-                                            sx={{ mr: 0.5 }}
-                                        >
-                                            <EditIcon fontSize="small" />
-                                        </IconButton>
-                                    </Tooltip>
-                                    <Tooltip title="Xóa">
-                                        <IconButton
-                                            size="small"
-                                            onClick={(e) => handleDeleteClick(session.id, session.name, e)}
-                                            sx={{ color: 'error.main' }}
-                                        >
-                                            <DeleteIcon fontSize="small" />
-                                        </IconButton>
-                                    </Tooltip>
-                                </ListItemSecondaryAction>
-                            </ListItem>
-                        ))}
+                                                onClick={(e) => handleExportClick(session, e)}
+                                                sx={{ color: 'primary.main', mr: 0.5 }}
+                                            >
+                                                <ExportIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Đổi tên">
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleRenameClick(session.id, session.name);
+                                                }}
+                                                sx={{ mr: 0.5 }}
+                                            >
+                                                <EditIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <Tooltip title="Xóa">
+                                            <IconButton
+                                                size="small"
+                                                onClick={(e) => handleDeleteClick(session.id, session.name, e)}
+                                                sx={{ color: 'error.main' }}
+                                            >
+                                                <DeleteIcon fontSize="small" />
+                                            </IconButton>
+                                        </Tooltip>
+                                    </ListItemSecondaryAction>
+                                </ListItem>
+                            );
+                        })}
                     </List>
                 )}
             </Box>
@@ -525,6 +554,29 @@ export function SessionPanel() {
                 </DialogContent>
                 <DialogActions>
                     <Button onClick={() => setExportDialogOpen(false)}>Đóng</Button>
+                </DialogActions>
+            </Dialog>
+
+            {/* Duplicate Name Warning Dialog */}
+            <Dialog
+                open={duplicateWarningOpen}
+                onClose={() => setDuplicateWarningOpen(false)}
+                aria-labelledby="duplicate-warning-dialog-title"
+            >
+                <DialogTitle id="duplicate-warning-dialog-title" sx={{ color: 'warning.main' }}>
+                    ⚠️ Tên phiên bị trùng!
+                </DialogTitle>
+                <DialogContent>
+                    <DialogContentText>
+                        Tên "<strong>{duplicateNameInfo?.original}</strong>" đã tồn tại!
+                        <br /><br />
+                        Vui lòng nhập tên khác cho phiên mới.
+                    </DialogContentText>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setDuplicateWarningOpen(false)} variant="contained" autoFocus>
+                        OK
+                    </Button>
                 </DialogActions>
             </Dialog>
         </Box >

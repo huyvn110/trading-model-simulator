@@ -21,9 +21,10 @@ function BestModelSummaryComponent() {
     }, [factors]);
 
     const stats = useMemo(() => {
+        if (!currentSession) return [];
         const rawStats = getCurrentSessionStats(getFactorName);
         return [...rawStats].sort((a, b) => b.winRate - a.winRate);
-    }, [getCurrentSessionStats, getFactorName]);
+    }, [currentSession?.id, currentSession?.trades.length, factors]);
     const measurementMode = currentSession?.measurementMode || 'RR';
 
     const formatValue = (value: number) => {

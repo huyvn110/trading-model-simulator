@@ -133,17 +133,30 @@ export const useTestSessionStore = create<TestSessionState>()(
             },
 
             createSession: (name: string) => {
-                const session: TestSession = {
+                const { currentSession, sessions } = get();
+
+                // If there's an existing session, end it first
+                let updatedSessions = sessions;
+                if (currentSession) {
+                    const endedSession = { ...currentSession, endTime: Date.now() };
+                    updatedSessions = sessions.map((s) =>
+                        s.id === endedSession.id ? endedSession : s
+                    );
+                }
+
+                // Create a completely new session with empty trades
+                const newSession: TestSession = {
                     id: uuidv4(),
                     name,
                     startTime: Date.now(),
                     measurementMode: get().measurementMode,
-                    trades: [],
+                    trades: [], // Always start with empty trades
                 };
-                set((state) => ({
-                    currentSession: session,
-                    sessions: [session, ...state.sessions],
-                }));
+
+                set({
+                    currentSession: newSession,
+                    sessions: [newSession, ...updatedSessions],
+                });
             },
 
             endSession: () => {
@@ -161,8 +174,16 @@ export const useTestSessionStore = create<TestSessionState>()(
 
             selectSession: (id: string) => {
                 const session = get().sessions.find((s) => s.id === id);
+                const { currentSession } = get();
+
+                // Only allow selecting sessions that haven't ended (no endTime)
+                // OR the session that is currently active
                 if (session) {
-                    set({ currentSession: session });
+                    if (!session.endTime || session.id === currentSession?.id) {
+                        set({ currentSession: session });
+                    }
+                    // If session has ended, don't set it as currentSession
+                    // This prevents adding trades to old sessions
                 }
             },
 

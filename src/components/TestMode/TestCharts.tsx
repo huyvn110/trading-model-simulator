@@ -48,8 +48,11 @@ function TestChartsComponent() {
         return factor?.name || 'Unknown';
     }, [factors]);
 
-    // Memoize expensive calculations
-    const stats = useMemo(() => getCurrentSessionStats(getFactorName), [getCurrentSessionStats, getFactorName]);
+    // Memoize expensive calculations with proper dependencies
+    const stats = useMemo(() => {
+        if (!currentSession) return [];
+        return getCurrentSessionStats(getFactorName);
+    }, [currentSession?.id, currentSession?.trades.length, factors]);
     const measurementMode = currentSession?.measurementMode || 'RR';
     const sortedStats = useMemo(() => [...stats].sort((a, b) => b.winRate - a.winRate), [stats]);
 
