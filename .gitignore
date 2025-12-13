@@ -32,3 +32,10 @@ Thumbs.db
 
 # Misc
 *.log
+
+# Tauri build artifacts
+src-tauri/target/
+
+# Electron build artifacts
+app-electron/
+dist-electron/
