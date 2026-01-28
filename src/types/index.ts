@@ -64,11 +64,20 @@ export interface LiveTrade {
     modelId: string;
     modelName: string;
     measurementValue: number;
-    profitRatio?: number;  // For win trades: multiplier (RR) or percentage ($/%)
+    profitRatio?: number;  // For win trades: multiplier (RR) or percentage ($%)
     result: 'win' | 'lose';
-    notes?: string;
-    images?: string[];  // base64 data URLs
+    notes?: string;  // Legacy - keep for backward compatibility
+    images?: string[];  // Legacy - keep for backward compatibility
+    content?: ContentBlock[];  // New: Notion-like content blocks
 }
+
+// Content block for Notion-like editor
+export interface ContentBlock {
+    id: string;
+    type: 'text' | 'image';
+    value: string;  // text content or base64 image data
+}
+
 
 // Live trading session
 export interface LiveSession {

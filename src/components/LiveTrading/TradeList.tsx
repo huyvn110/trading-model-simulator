@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, useRef, useCallback, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Paper,
@@ -20,7 +20,6 @@ import {
     DialogContent,
     DialogActions,
     Button,
-    TextField,
     FormControl,
     InputLabel,
     Select,
@@ -32,9 +31,11 @@ import {
     Image as ImageIcon,
     CheckCircle as WinIcon,
     Cancel as LoseIcon,
+    Edit as EditIcon,
 } from '@mui/icons-material';
 import { useLiveSessionStore } from '@/store/liveSessionStore';
-import { LiveTrade } from '@/types';
+import { LiveTrade, ContentBlock } from '@/types';
+import { NotionEditor, migrateToContentBlocks, extractFromContentBlocks } from '@/components/shared/NotionEditor';
 
 interface TradeDetailsDialogProps {
     trade: LiveTrade | null;
@@ -43,69 +44,26 @@ interface TradeDetailsDialogProps {
 }
 
 function TradeDetailsDialog({ trade: tradeProp, open, onClose }: TradeDetailsDialogProps) {
-    const { currentSession, updateTradeNotes, addTradeImage, removeTradeImage } = useLiveSessionStore();
-    const [notes, setNotes] = useState('');
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const { currentSession, updateTradeContent } = useLiveSessionStore();
+    const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
 
     // Get fresh trade data from store
     const trade = currentSession?.trades.find(t => t.id === tradeProp?.id) || tradeProp;
 
-    React.useEffect(() => {
-        if (trade) {
-            setNotes(trade.notes || '');
-        }
-    }, [trade?.id]);
-
-    const handleSaveNotes = () => {
-        if (trade) {
-            updateTradeNotes(trade.id, notes);
-        }
-    };
-
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file || !trade) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const base64 = event.target?.result as string;
-            addTradeImage(trade.id, base64);
-        };
-        reader.readAsDataURL(file);
-        e.target.value = '';
-    };
-
-    // Handle paste image from clipboard
-    const handlePaste = useCallback((e: ClipboardEvent) => {
-        if (!trade || !open) return;
-
-        const items = e.clipboardData?.items;
-        if (!items) return;
-
-        for (let i = 0; i < items.length; i++) {
-            if (items[i].type.indexOf('image') !== -1) {
-                e.preventDefault();
-                e.stopPropagation();
-                const blob = items[i].getAsFile();
-                if (blob) {
-                    const reader = new FileReader();
-                    reader.onload = (event) => {
-                        const base64 = event.target?.result as string;
-                        addTradeImage(trade.id, base64);
-                    };
-                    reader.readAsDataURL(blob);
-                }
-                break;
-            }
-        }
-    }, [trade?.id, open, addTradeImage]);
-
     useEffect(() => {
-        if (open && trade) {
-            document.addEventListener('paste', handlePaste, true);
-            return () => document.removeEventListener('paste', handlePaste, true);
+        if (trade) {
+            // Migrate legacy notes/images to content blocks if needed
+            const blocks = migrateToContentBlocks(trade.notes, trade.images, trade.content);
+            setContentBlocks(blocks);
         }
-    }, [open, trade?.id, handlePaste]);
+    }, [trade?.id, trade?.content, trade?.notes, trade?.images]);
+
+    const handleContentChange = (newBlocks: ContentBlock[]) => {
+        setContentBlocks(newBlocks);
+        if (trade) {
+            updateTradeContent(trade.id, newBlocks);
+        }
+    };
 
     if (!trade) return null;
 
@@ -127,75 +85,16 @@ function TradeDetailsDialog({ trade: tradeProp, open, onClose }: TradeDetailsDia
                         />
                     </Box>
 
-                    <TextField
-                        label="Notes"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        onBlur={handleSaveNotes}
-                        multiline
-                        rows={3}
-                        fullWidth
-                        placeholder="Add notes about this trade..."
-                    />
-
+                    {/* Notion-like Content Editor */}
                     <Box>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Images (Ctrl+V to paste)
+                            Ghi chú & Hình ảnh
                         </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                            {trade.images?.map((img, index) => (
-                                <Box
-                                    key={index}
-                                    sx={{
-                                        position: 'relative',
-                                        width: 100,
-                                        height: 100,
-                                        borderRadius: 1,
-                                        overflow: 'hidden',
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                    }}
-                                >
-                                    <img
-                                        src={img}
-                                        alt={`Trade ${index + 1}`}
-                                        style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'cover',
-                                        }}
-                                    />
-                                    <IconButton
-                                        size="small"
-                                        onClick={() => removeTradeImage(trade.id, index)}
-                                        sx={{
-                                            position: 'absolute',
-                                            top: 2,
-                                            right: 2,
-                                            bgcolor: 'rgba(0,0,0,0.5)',
-                                            color: 'white',
-                                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                                        }}
-                                    >
-                                        <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                </Box>
-                            ))}
-                            <Button
-                                variant="outlined"
-                                onClick={() => fileInputRef.current?.click()}
-                                sx={{ width: 100, height: 100 }}
-                            >
-                                <ImageIcon />
-                            </Button>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                ref={fileInputRef}
-                                style={{ display: 'none' }}
-                                onChange={handleImageUpload}
-                            />
-                        </Stack>
+                        <NotionEditor
+                            blocks={contentBlocks}
+                            onChange={handleContentChange}
+                            placeholder="Thêm ghi chú hoặc ảnh..."
+                        />
                     </Box>
                 </Stack>
             </DialogContent>
@@ -244,6 +143,13 @@ export function TradeList() {
     const handleOpenDetails = (trade: LiveTrade) => {
         setSelectedTrade(trade);
         setDetailsOpen(true);
+    };
+
+    // Helper to check if trade has content
+    const hasContent = (trade: LiveTrade) => {
+        return (trade.content && trade.content.length > 0) ||
+            trade.notes ||
+            (trade.images && trade.images.length > 0);
     };
 
     if (trades.length === 0) {
@@ -314,7 +220,7 @@ export function TradeList() {
                                 <TableCell>Model</TableCell>
                                 <TableCell align="right">Value</TableCell>
                                 <TableCell align="center">Result</TableCell>
-                                <TableCell align="center">Notes</TableCell>
+                                <TableCell align="center">Content</TableCell>
                                 <TableCell align="right">Actions</TableCell>
                             </TableRow>
                         </TableHead>
@@ -348,18 +254,11 @@ export function TradeList() {
                                         />
                                     </TableCell>
                                     <TableCell align="center">
-                                        <Stack direction="row" spacing={0.5} justifyContent="center">
-                                            {trade.notes && (
-                                                <Tooltip title="Has notes">
-                                                    <NotesIcon fontSize="small" color="primary" />
-                                                </Tooltip>
-                                            )}
-                                            {trade.images && trade.images.length > 0 && (
-                                                <Tooltip title={`${trade.images.length} image(s)`}>
-                                                    <ImageIcon fontSize="small" color="primary" />
-                                                </Tooltip>
-                                            )}
-                                        </Stack>
+                                        {hasContent(trade) && (
+                                            <Tooltip title="Has content">
+                                                <NotesIcon fontSize="small" color="primary" />
+                                            </Tooltip>
+                                        )}
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
@@ -368,7 +267,7 @@ export function TradeList() {
                                                     size="small"
                                                     onClick={() => handleOpenDetails(trade)}
                                                 >
-                                                    <NotesIcon fontSize="small" />
+                                                    <EditIcon fontSize="small" />
                                                 </IconButton>
                                             </Tooltip>
                                             <Tooltip title="Delete">

@@ -1,9 +1,8 @@
 'use client';
 
-import React, { useState, useRef, useEffect, useCallback } from 'react';
+import React, { useState } from 'react';
 import {
     Box,
-    Paper,
     Typography,
     TextField,
     Button,
@@ -11,16 +10,22 @@ import {
     Alert,
     Chip,
     IconButton,
+    Tooltip,
     Dialog,
+    DialogTitle,
+    DialogContent,
+    DialogActions,
+    Badge,
 } from '@mui/material';
 import {
     Check as WinIcon,
     Close as LoseIcon,
-    Image as ImageIcon,
-    Delete as DeleteIcon,
+    Description as NoteIcon,
 } from '@mui/icons-material';
 import { useTestSessionStore } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
+import { NotionEditor, extractFromContentBlocks } from '@/components/shared/NotionEditor';
+import { ContentBlock } from '@/types';
 
 export function TradeRecorder() {
     const { currentSession, addTrade } = useTestSessionStore();
@@ -29,10 +34,8 @@ export function TradeRecorder() {
 
     const [value, setValue] = useState<string>('');
     const [profitRatio, setProfitRatio] = useState<string>('');
-    const [notes, setNotes] = useState<string>('');
-    const [images, setImages] = useState<string[]>([]);
-    const [zoomImage, setZoomImage] = useState<string | null>(null);
-    const fileInputRef = useRef<HTMLInputElement>(null);
+    const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
+    const [noteDialogOpen, setNoteDialogOpen] = useState(false);
 
     const measurementMode = currentSession?.measurementMode || 'RR';
 
@@ -67,53 +70,6 @@ export function TradeRecorder() {
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const base64 = event.target?.result as string;
-            setImages([...images, base64]);
-        };
-        reader.readAsDataURL(file);
-        e.target.value = '';
-    };
-
-    // Handle Ctrl+V paste for images
-    const handlePaste = useCallback((e: ClipboardEvent) => {
-        // Don't capture paste if a dialog is open (checking for MUI dialog backdrop)
-        const dialogOpen = document.querySelector('.MuiDialog-root');
-        if (dialogOpen) return;
-
-        const items = e.clipboardData?.items;
-        if (!items) return;
-
-        for (let i = 0; i < items.length; i++) {
-            const item = items[i];
-            if (item.type.startsWith('image/')) {
-                e.preventDefault();
-                const file = item.getAsFile();
-                if (!file) continue;
-
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const base64 = event.target?.result as string;
-                    setImages((prev) => [...prev, base64]);
-                };
-                reader.readAsDataURL(file);
-                break;
-            }
-        }
-    }, []);
-
-    useEffect(() => {
-        document.addEventListener('paste', handlePaste);
-        return () => {
-            document.removeEventListener('paste', handlePaste);
-        };
-    }, [handlePaste]);
-
     const handleRecordTrade = (result: 'win' | 'lose') => {
         if (!currentSession || selectedFactors.length === 0 || !value) return;
 
@@ -135,19 +91,22 @@ export function TradeRecorder() {
             }
         }
 
+        // Extract notes and images from content blocks for backward compatibility
+        const { notes, images } = extractFromContentBlocks(contentBlocks);
+
         addTrade(
             selectedFactors,
             finalValue,
             result,
             notes || undefined,
-            images.length > 0 ? images : undefined
+            images.length > 0 ? images : undefined,
+            contentBlocks.length > 0 ? contentBlocks : undefined
         );
 
         // Reset form
         setValue('');
         setProfitRatio('');
-        setNotes('');
-        setImages([]);
+        setContentBlocks([]);
     };
 
     if (!currentSession) {
@@ -168,225 +127,256 @@ export function TradeRecorder() {
     }
 
     return (
-        <>
-            <Box
-                sx={{
-                    p: 2.5,
-                }}
-            >
-                <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
-                    Ghi Trade
-                </Typography>
+        <Box
+            sx={{
+                p: 2.5,
+            }}
+        >
+            <Typography variant="h6" sx={{ fontWeight: 600, mb: 2 }}>
+                Ghi Trade
+            </Typography>
 
-                <Stack spacing={2}>
-                    {/* Selected Factors Display */}
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Chọn factor(s) ở trên
-                        </Typography>
-                        {selectedFactors.length > 0 ? (
-                            <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
-                                {selectedFactors.map((f) => (
-                                    <Chip
-                                        key={f.id}
-                                        label={f.name}
-                                        size="small"
-                                        color="primary"
-                                    />
-                                ))}
-                            </Stack>
-                        ) : (
-                            <Alert severity="warning" sx={{ py: 0.5 }}>
-                                Chọn ít nhất 1 factor
-                            </Alert>
-                        )}
-                    </Box>
-
-                    {/* Value Input */}
-                    <TextField
-                        label={getValueLabel()}
-                        type="number"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        size="small"
-                        fullWidth
-                        placeholder="Nhập giá trị..."
-                        inputProps={{ min: 0, step: 0.1 }}
-                    />
-
-                    {/* Profit Ratio Input */}
-                    <TextField
-                        label={getProfitLabel()}
-                        type="number"
-                        value={profitRatio}
-                        onChange={(e) => setProfitRatio(e.target.value)}
-                        size="small"
-                        fullWidth
-                        placeholder={getProfitPlaceholder()}
-                        inputProps={{ min: 0, step: 0.1 }}
-                        helperText={
-                            measurementMode === 'RR'
-                                ? 'Nhân với giá trị khi WIN (VD: 1.5x = 1R → 1.5R)'
-                                : 'Cộng % vào giá trị khi WIN (VD: 50% = $100 → $150)'
-                        }
-                    />
-
-                    {/* Notes */}
-                    <TextField
-                        label="Ghi chú (tùy chọn)"
-                        value={notes}
-                        onChange={(e) => setNotes(e.target.value)}
-                        size="small"
-                        fullWidth
-                        multiline
-                        rows={2}
-                        placeholder="Nhập ghi chú..."
-                    />
-
-                    {/* Image Upload */}
-                    <Box>
-                        <Typography variant="body2" color="text.secondary" gutterBottom>
-                            Hình ảnh (tùy chọn)
-                        </Typography>
-                        <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
-                            {images.map((img, index) => (
-                                <Box
-                                    key={index}
-                                    sx={{
-                                        position: 'relative',
-                                        width: 80,
-                                        height: 80,
-                                        borderRadius: 1,
-                                        overflow: 'hidden',
-                                        border: '1px solid',
-                                        borderColor: 'divider',
-                                        cursor: 'pointer',
-                                    }}
-                                    onClick={() => setZoomImage(img)}
-                                >
-                                    <img
-                                        src={img}
-                                        alt={`Image ${index + 1}`}
-                                        style={{
-                                            width: '100%',
-                                            height: '100%',
-                                            objectFit: 'cover',
-                                        }}
-                                    />
-                                    <IconButton
-                                        size="small"
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            setImages(images.filter((_, i) => i !== index));
-                                        }}
-                                        sx={{
-                                            position: 'absolute',
-                                            top: 2,
-                                            right: 2,
-                                            bgcolor: 'rgba(0,0,0,0.5)',
-                                            color: 'white',
-                                            '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
-                                        }}
-                                    >
-                                        <DeleteIcon fontSize="small" />
-                                    </IconButton>
-                                </Box>
+            <Stack spacing={2}>
+                {/* Selected Factors Display */}
+                <Box>
+                    <Typography variant="body2" color="text.secondary" gutterBottom>
+                        Chọn factor(s) ở trên
+                    </Typography>
+                    {selectedFactors.length > 0 ? (
+                        <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
+                            {selectedFactors.map((f) => (
+                                <Chip
+                                    key={f.id}
+                                    label={f.name}
+                                    size="small"
+                                    color="primary"
+                                />
                             ))}
-                            <Button
-                                variant="outlined"
-                                onClick={() => fileInputRef.current?.click()}
-                                sx={{ width: 80, height: 80, fontSize: '0.75rem' }}
-                            >
-                                <Stack alignItems="center" spacing={0.5}>
-                                    <ImageIcon />
-                                    <Typography variant="caption">Add</Typography>
-                                </Stack>
-                            </Button>
                         </Stack>
-                        <input
-                            type="file"
-                            accept="image/*"
-                            ref={fileInputRef}
-                            style={{ display: 'none' }}
-                            onChange={handleImageUpload}
-                        />
-                    </Box>
+                    ) : (
+                        <Alert severity="warning" sx={{ py: 0.5 }}>
+                            Chọn ít nhất 1 factor
+                        </Alert>
+                    )}
+                </Box>
 
-                    {/* Win/Lose Buttons */}
-                    <Stack direction="row" spacing={1.5}>
-                        <Button
-                            variant="contained"
-                            fullWidth
-                            color="success"
-                            startIcon={<WinIcon />}
-                            onClick={() => handleRecordTrade('win')}
-                            disabled={selectedFactors.length === 0 || !value || parseFloat(value) <= 0}
-                            sx={{ py: 1.25, fontWeight: 600 }}
-                        >
-                            WIN
-                        </Button>
-                        <Button
-                            variant="contained"
-                            fullWidth
-                            color="error"
-                            startIcon={<LoseIcon />}
-                            onClick={() => handleRecordTrade('lose')}
-                            disabled={selectedFactors.length === 0 || !value || parseFloat(value) <= 0}
-                            sx={{ py: 1.25, fontWeight: 600 }}
-                        >
-                            LOSE
-                        </Button>
-                    </Stack>
+                {/* Value Input */}
+                <TextField
+                    label={getValueLabel()}
+                    type="number"
+                    value={value}
+                    onChange={(e) => setValue(e.target.value)}
+                    size="small"
+                    fullWidth
+                    placeholder="Nhập giá trị..."
+                    inputProps={{ min: 0, step: 0.1 }}
+                />
 
-                    {/* Trade count */}
-                    <Box
-                        sx={{
-                            textAlign: 'center',
-                            py: 1.5,
-                            bgcolor: 'grey.100',
-                            borderRadius: 1,
-                        }}
-                    >
-                        <Typography variant="h4" fontWeight={600}>
-                            {currentSession.trades.length}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                            trades
-                        </Typography>
-                    </Box>
-                </Stack>
-            </Box>
+                {/* Profit Ratio Input */}
+                <TextField
+                    label={getProfitLabel()}
+                    type="number"
+                    value={profitRatio}
+                    onChange={(e) => setProfitRatio(e.target.value)}
+                    size="small"
+                    fullWidth
+                    placeholder={getProfitPlaceholder()}
+                    inputProps={{ min: 0, step: 0.1 }}
+                    helperText={
+                        measurementMode === 'RR'
+                            ? 'Nhân với giá trị khi WIN (VD: 1.5x = 1R → 1.5R)'
+                            : 'Cộng % vào giá trị khi WIN (VD: 50% = $100 → $150)'
+                    }
+                />
 
-            {/* Zoom Dialog */}
-            <Dialog
-                open={!!zoomImage}
-                onClose={() => setZoomImage(null)}
-                maxWidth="lg"
-            >
-                {zoomImage && (
-                    <Box
-                        sx={{
-                            p: 1,
-                            bgcolor: 'black',
-                            display: 'flex',
-                            justifyContent: 'center',
-                            alignItems: 'center',
-                        }}
-                        onClick={() => setZoomImage(null)}
-                    >
-                        <img
-                            src={zoomImage}
-                            alt="Zoom"
-                            style={{
-                                maxWidth: '90vw',
-                                maxHeight: '90vh',
-                                objectFit: 'contain',
+                {/* Note Icon */}
+                <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                    <Typography variant="body2" color="text.secondary">
+                        Ghi chú:
+                    </Typography>
+                    <Tooltip title={contentBlocks.length > 0 ? 'Chỉnh sửa ghi chú' : 'Thêm ghi chú'}>
+                        <IconButton
+                            onClick={() => setNoteDialogOpen(true)}
+                            sx={{
+                                color: contentBlocks.length > 0 ? 'primary.main' : 'grey.500',
+                                bgcolor: contentBlocks.length > 0 ? 'primary.light' : 'grey.100',
+                                '&:hover': {
+                                    bgcolor: contentBlocks.length > 0 ? 'primary.main' : 'grey.200',
+                                    color: contentBlocks.length > 0 ? 'white' : 'grey.700',
+                                },
                             }}
-                        />
+                        >
+                            <Badge
+                                badgeContent={contentBlocks.length > 0 ? '✓' : null}
+                                color="success"
+                                sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', minWidth: 14, height: 14 } }}
+                            >
+                                <NoteIcon />
+                            </Badge>
+                        </IconButton>
+                    </Tooltip>
+                    {contentBlocks.length > 0 && (
+                        <Typography variant="caption" color="success.main">
+                            Đã có ghi chú
+                        </Typography>
+                    )}
+                </Box>
+
+                {/* Note Dialog - Notion Style */}
+                <Dialog
+                    open={noteDialogOpen}
+                    onClose={() => setNoteDialogOpen(false)}
+                    maxWidth="md"
+                    fullWidth
+                    PaperProps={{
+                        sx: {
+                            bgcolor: '#191919',
+                            color: 'white',
+                            minHeight: '70vh',
+                            maxHeight: '85vh',
+                            borderRadius: 2,
+                        },
+                    }}
+                >
+                    {/* Notion-style Header */}
+                    <Box
+                        sx={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            px: 3,
+                            py: 2,
+                            borderBottom: '1px solid #2f2f2f',
+                        }}
+                    >
+                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
+                            <NoteIcon sx={{ color: '#9f9f9f', fontSize: 24 }} />
+                            <Typography
+                                variant="h5"
+                                sx={{
+                                    fontWeight: 700,
+                                    color: 'white',
+                                    letterSpacing: '-0.02em',
+                                }}
+                            >
+                                Ghi chú Trade
+                            </Typography>
+                        </Box>
+                        <IconButton
+                            onClick={() => setNoteDialogOpen(false)}
+                            sx={{
+                                color: '#9f9f9f',
+                                '&:hover': { bgcolor: '#2f2f2f', color: 'white' },
+                            }}
+                        >
+                            <LoseIcon />
+                        </IconButton>
                     </Box>
-                )}
-            </Dialog>
-        </>
+
+                    {/* Content Area */}
+                    <DialogContent
+                        sx={{
+                            bgcolor: '#191919',
+                            px: 4,
+                            py: 3,
+                            flex: 1,
+                            overflowY: 'auto',
+                        }}
+                    >
+                        <Box
+                            sx={{
+                                bgcolor: '#1e1e1e',
+                                borderRadius: 2,
+                                p: 2,
+                                minHeight: '45vh',
+                                border: '1px solid #2f2f2f',
+                            }}
+                        >
+                            <NotionEditor
+                                blocks={contentBlocks}
+                                onChange={setContentBlocks}
+                                placeholder="Type '/' for commands, or start typing..."
+                            />
+                        </Box>
+                    </DialogContent>
+
+                    {/* Footer Actions */}
+                    <DialogActions
+                        sx={{
+                            bgcolor: '#191919',
+                            borderTop: '1px solid #2f2f2f',
+                            px: 3,
+                            py: 2,
+                            gap: 1,
+                        }}
+                    >
+                        <Button
+                            onClick={() => setContentBlocks([])}
+                            sx={{
+                                color: '#ff6b6b',
+                                '&:hover': { bgcolor: 'rgba(255, 107, 107, 0.1)' },
+                            }}
+                        >
+                            Xóa ghi chú
+                        </Button>
+                        <Button
+                            onClick={() => setNoteDialogOpen(false)}
+                            variant="contained"
+                            sx={{
+                                bgcolor: '#3b82f6',
+                                '&:hover': { bgcolor: '#2563eb' },
+                                px: 3,
+                            }}
+                        >
+                            Lưu & Đóng
+                        </Button>
+                    </DialogActions>
+                </Dialog>
+
+                {/* Win/Lose Buttons */}
+                <Stack direction="row" spacing={1.5}>
+                    <Button
+                        variant="contained"
+                        fullWidth
+                        color="success"
+                        startIcon={<WinIcon />}
+                        onClick={() => handleRecordTrade('win')}
+                        disabled={selectedFactors.length === 0 || !value || parseFloat(value) <= 0}
+                        sx={{ py: 1.25, fontWeight: 600 }}
+                    >
+                        WIN
+                    </Button>
+                    <Button
+                        variant="contained"
+                        fullWidth
+                        color="error"
+                        startIcon={<LoseIcon />}
+                        onClick={() => handleRecordTrade('lose')}
+                        disabled={selectedFactors.length === 0 || !value || parseFloat(value) <= 0}
+                        sx={{ py: 1.25, fontWeight: 600 }}
+                    >
+                        LOSE
+                    </Button>
+                </Stack>
+
+                {/* Trade count */}
+                <Box
+                    sx={{
+                        textAlign: 'center',
+                        py: 1.5,
+                        bgcolor: 'grey.100',
+                        borderRadius: 1,
+                    }}
+                >
+                    <Typography variant="h4" fontWeight={600}>
+                        {currentSession.trades.length}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                        trades
+                    </Typography>
+                </Box>
+            </Stack>
+        </Box>
     );
 }
 

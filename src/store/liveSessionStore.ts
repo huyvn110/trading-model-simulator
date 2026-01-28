@@ -8,6 +8,7 @@ import {
     LiveTrade,
     LiveSession,
     LiveModelStats,
+    ContentBlock,
 } from '@/types';
 
 interface LiveSessionState {
@@ -28,9 +29,11 @@ interface LiveSessionState {
         profitRatio: number | undefined,
         result: 'win' | 'lose',
         notes?: string,
-        images?: string[]
+        images?: string[],
+        content?: ContentBlock[]
     ) => void;
     updateTradeNotes: (tradeId: string, notes: string) => void;
+    updateTradeContent: (tradeId: string, content: ContentBlock[]) => void;
     addTradeImage: (tradeId: string, image: string) => void;
     removeTradeImage: (tradeId: string, imageIndex: number) => void;
     deleteTrade: (tradeId: string) => void;
@@ -128,7 +131,8 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                 profitRatio: number | undefined,
                 result: 'win' | 'lose',
                 notes?: string,
-                images?: string[]
+                images?: string[],
+                content?: ContentBlock[]
             ) => {
                 const { currentSession, measurementMode } = get();
 
@@ -152,6 +156,7 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                     result,
                     notes,
                     images,
+                    content,
                 };
 
                 set((state) => {
@@ -189,6 +194,22 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                     };
                 });
             },
+
+            updateTradeContent: (tradeId: string, content: ContentBlock[]) => {
+                set((state) => {
+                    if (!state.currentSession) return state;
+
+                    return {
+                        currentSession: {
+                            ...state.currentSession,
+                            trades: state.currentSession.trades.map((t) =>
+                                t.id === tradeId ? { ...t, content } : t
+                            ),
+                        },
+                    };
+                });
+            },
+
 
             addTradeImage: (tradeId: string, image: string) => {
                 set((state) => {

@@ -23,6 +23,7 @@ import {
     LocalFireDepartment as LiveIcon,
     ExpandMore as ExpandMoreIcon,
     ExpandLess as ExpandLessIcon,
+    Description as NotesIcon,
 } from '@mui/icons-material';
 import { Header } from '@/components/Header';
 import { FactorList } from '@/components/FactorList/FactorList';
@@ -40,6 +41,7 @@ const TradeList = lazy(() => import('@/components/LiveTrading/TradeList'));
 const ModelStats = lazy(() => import('@/components/LiveTrading/ModelStats'));
 const LiveCharts = lazy(() => import('@/components/LiveTrading/LiveCharts'));
 const LiveSessionHistory = lazy(() => import('@/components/LiveTrading/SessionHistory'));
+const NotesPage = lazy(() => import('@/components/Notes/NotesPage'));
 
 // Import ModelList and ModelDialog directly since we need to control dialog from page level
 import { ModelList, ModelDialog } from '@/components/LiveTrading/ModelList';
@@ -75,7 +77,7 @@ function TabPanel(props: TabPanelProps) {
     );
 }
 
-type AppMode = 'test' | 'live';
+type AppMode = 'test' | 'live' | 'notes';
 
 export default function Home() {
     const theme = useTheme();
@@ -180,6 +182,24 @@ export default function Home() {
                     >
                         <LiveIcon />
                         Thực Chiến
+                    </ToggleButton>
+                    <ToggleButton
+                        value="notes"
+                        sx={{
+                            px: 3,
+                            gap: 1,
+                            fontWeight: 600,
+                            '&.Mui-selected': {
+                                bgcolor: '#5c4d3c',
+                                color: 'white',
+                                '&:hover': {
+                                    bgcolor: '#4a3d2f',
+                                },
+                            },
+                        }}
+                    >
+                        <NotesIcon />
+                        Notes
                     </ToggleButton>
                 </ToggleButtonGroup>
             </Box>
@@ -375,8 +395,14 @@ export default function Home() {
                         </Grid>
                     </Grid>
                 )}
-            </Container>
 
+                {/* Notes Mode */}
+                {appMode === 'notes' && (
+                    <Suspense fallback={<LoadingFallback />}>
+                        <NotesPage />
+                    </Suspense>
+                )}
+            </Container>
 
 
             {/* Model Dialog - rendered at page level for proper state control */}

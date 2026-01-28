@@ -3,7 +3,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
-import { MeasurementMode, Factor } from '@/types';
+import { MeasurementMode, Factor, ContentBlock } from '@/types';
 
 // Test trade entry
 export interface TestTrade {
@@ -13,8 +13,9 @@ export interface TestTrade {
     modelKey: string; // sorted factor IDs joined (stable even when names change)
     measurementValue: number;
     result: 'win' | 'lose';
-    notes?: string;
-    images?: string[];
+    notes?: string;  // Legacy - keep for backward compatibility
+    images?: string[];  // Legacy - keep for backward compatibility
+    content?: ContentBlock[];  // New: Notion-like content blocks
 }
 
 // Test session
@@ -62,9 +63,11 @@ interface TestSessionState {
         value: number,
         result: 'win' | 'lose',
         notes?: string,
-        images?: string[]
+        images?: string[],
+        content?: ContentBlock[]
     ) => void;
     updateTradeNotes: (tradeId: string, notes: string) => void;
+    updateTradeContent: (tradeId: string, content: ContentBlock[]) => void;
     addTradeImage: (tradeId: string, image: string) => void;
     removeTradeImage: (tradeId: string, imageIndex: number) => void;
     deleteTrade: (tradeId: string) => void;
@@ -216,7 +219,8 @@ export const useTestSessionStore = create<TestSessionState>()(
                 value: number,
                 result: 'win' | 'lose',
                 notes?: string,
-                images?: string[]
+                images?: string[],
+                content?: ContentBlock[]
             ) => {
                 const { currentSession } = get();
                 if (!currentSession) return;
@@ -234,6 +238,7 @@ export const useTestSessionStore = create<TestSessionState>()(
                     result,
                     notes,
                     images,
+                    content,
                 };
 
                 set((state) => {
@@ -268,6 +273,26 @@ export const useTestSessionStore = create<TestSessionState>()(
                     };
                 });
             },
+
+            updateTradeContent: (tradeId: string, content: ContentBlock[]) => {
+                set((state) => {
+                    if (!state.currentSession) return state;
+
+                    const updatedSession = {
+                        ...state.currentSession,
+                        trades: state.currentSession.trades.map((t) =>
+                            t.id === tradeId ? { ...t, content } : t
+                        ),
+                    };
+                    return {
+                        currentSession: updatedSession,
+                        sessions: state.sessions.map((s) =>
+                            s.id === updatedSession.id ? updatedSession : s
+                        ),
+                    };
+                });
+            },
+
 
             addTradeImage: (tradeId: string, image: string) => {
                 set((state) => {
