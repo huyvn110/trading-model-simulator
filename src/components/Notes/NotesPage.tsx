@@ -257,6 +257,8 @@ function PageEditorView({
                     blocks={content}
                     onChange={handleContentChange}
                     placeholder="Type '/' for commands, or start typing..."
+                    sessionId={page.id}
+                    sessionName={`[Notes] ${page.title || 'Untitled'}`}
                 />
             </Box>
         </Box>

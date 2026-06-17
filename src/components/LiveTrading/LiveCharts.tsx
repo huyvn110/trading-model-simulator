@@ -19,6 +19,9 @@ import {
 } from '@mui/material';
 import { useLiveSessionStore } from '@/store/liveSessionStore';
 import { LiveBestModel } from './LiveBestModel';
+import { TopMetrics } from '@/components/shared/TopMetrics';
+import { TradingCalendar } from '@/components/shared/TradingCalendar';
+import { EquityChart } from '@/components/shared/EquityChart';
 
 // Dark theme for premium look
 const darkTheme = createTheme({
@@ -41,6 +44,8 @@ function LiveChartsComponent() {
     const { getCurrentSessionStats, currentSession } = useLiveSessionStore();
     const stats = getCurrentSessionStats();
     const measurementMode = currentSession?.measurementMode || 'RR';
+    const trades = currentSession?.trades || [];
+    const initialBalance = currentSession?.initialBalance || 0;
 
     // Sort by win rate
     const sortedStats = useMemo(() => [...stats].sort((a, b) => b.winRate - a.winRate), [stats]);
@@ -58,6 +63,23 @@ function LiveChartsComponent() {
 
     return (
         <Stack spacing={3}>
+            {/* Dashboard: Top Metrics */}
+            <ThemeProvider theme={darkTheme}>
+                <TopMetrics trades={trades} initialBalance={initialBalance} measurementMode={measurementMode} />
+            </ThemeProvider>
+
+            {/* Dashboard: Equity Chart and Calendar */}
+            <ThemeProvider theme={darkTheme}>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                    <Box sx={{ flex: 1 }}>
+                        <EquityChart trades={trades} initialBalance={initialBalance} measurementMode={measurementMode} />
+                    </Box>
+                    <Box sx={{ flex: 1 }}>
+                        <TradingCalendar trades={trades} measurementMode={measurementMode} />
+                    </Box>
+                </Stack>
+            </ThemeProvider>
+
             <LiveBestModel />
             <ThemeProvider theme={darkTheme}>
                 <Paper

@@ -75,11 +75,13 @@ export function TestResults() {
     return (
         <Paper
             elevation={0}
+            className="glass-card"
             sx={{
                 p: 2.5,
-                borderRadius: 2,
+                borderRadius: 3,
                 border: '1px solid',
                 borderColor: 'divider',
+                transition: 'all 0.3s ease',
             }}
         >
             <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
@@ -89,10 +91,11 @@ export function TestResults() {
             {/* Summary Cards - Best Model Info */}
             <Stack direction="row" spacing={2} sx={{ mb: 3 }}>
                 <Box
+                    className="hover-lift"
                     sx={{
                         flex: 1.5,
-                        p: 2,
-                        borderRadius: 1.5,
+                        p: 2.5,
+                        borderRadius: 2.5,
                         bgcolor: 'primary.50',
                         border: '2px solid',
                         borderColor: 'primary.main',
@@ -106,10 +109,11 @@ export function TestResults() {
                     </Typography>
                 </Box>
                 <Box
+                    className="hover-lift"
                     sx={{
                         flex: 1,
-                        p: 2,
-                        borderRadius: 1.5,
+                        p: 2.5,
+                        borderRadius: 2.5,
                         bgcolor: 'success.50',
                         textAlign: 'center',
                     }}
@@ -126,10 +130,11 @@ export function TestResults() {
                     </Typography>
                 </Box>
                 <Box
+                    className="hover-lift"
                     sx={{
                         flex: 1,
-                        p: 2,
-                        borderRadius: 1.5,
+                        p: 2.5,
+                        borderRadius: 2.5,
                         bgcolor: stats[0]?.totalValue >= 0 ? 'success.50' : 'error.50',
                         textAlign: 'center',
                     }}

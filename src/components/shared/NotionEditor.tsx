@@ -44,6 +44,8 @@ interface NotionEditorProps {
     placeholder?: string;
     readOnly?: boolean;
     compact?: boolean;
+    sessionId?: string;
+    sessionName?: string;
 }
 
 interface SortableBlockProps {
@@ -51,11 +53,14 @@ interface SortableBlockProps {
     onUpdate: (value: string) => void;
     onDelete: () => void;
     onImageClick: (src: string) => void;
-    onAddBlock: (type: 'text' | 'image', afterId: string) => void;
+    onAddBlock: (type: 'text' | 'image', afterId: string, imageUrl?: string) => void;
+    onUpdateAnyBlock: (blockId: string, value: string) => void;
     onEnterNewBlock: (afterId: string, textBefore: string, textAfter: string) => void;
     readOnly?: boolean;
     compact?: boolean;
     isLast?: boolean;
+    sessionId?: string;
+    sessionName?: string;
 }
 
 function SortableBlock({
@@ -64,10 +69,13 @@ function SortableBlock({
     onDelete,
     onImageClick,
     onAddBlock,
+    onUpdateAnyBlock,
     onEnterNewBlock,
     readOnly,
     compact,
-    isLast
+    isLast,
+    sessionId,
+    sessionName
 }: SortableBlockProps) {
     const {
         attributes,
@@ -107,17 +115,30 @@ function SortableBlock({
         handleMenuClose();
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const base64 = event.target?.result as string;
-            onAddBlock('image', block.id);
-        };
-        reader.readAsDataURL(file);
+        // Hiển thị ảnh NGAY LẬP TỨC bằng blob URL
+        const localUrl = URL.createObjectURL(file);
+        const newBlockId = uuidv4();
+        onAddBlock('image', block.id, localUrl);
+
+        // Upload lên Drive ở phía sau (background)
         e.target.value = '';
+        try {
+            const { uploadImageToDrive } = await import('@/lib/uploadImage');
+            const realUrl = await uploadImageToDrive(file, sessionId, sessionName);
+            // Thay thế blob URL bằng URL thật từ Drive
+            onUpdateAnyBlock(localUrl, realUrl);
+        } catch (error) {
+            console.error('Failed to upload image:', error);
+            // Ảnh vẫn hiển thị tạm bằng blob URL, không mất
+        } finally {
+            URL.revokeObjectURL(localUrl);
+        }
     };
 
     // Auto-resize textarea
@@ -496,7 +517,7 @@ function EmptyStateBlock({
     );
 }
 
-export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact }: NotionEditorProps) {
+export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact, sessionId, sessionName }: NotionEditorProps) {
     const fileInputRef = useRef<HTMLInputElement>(null);
     const [zoomImage, setZoomImage] = useState<string | null>(null);
     const [pendingImageAfterId, setPendingImageAfterId] = useState<string | null>(null);
@@ -517,8 +538,8 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact 
         }
     };
 
-    const addBlock = (type: 'text' | 'image', afterId?: string) => {
-        if (type === 'image') {
+    const addBlock = (type: 'text' | 'image', afterId?: string, imageUrl?: string) => {
+        if (type === 'image' && !imageUrl) {
             setPendingImageAfterId(afterId || null);
             fileInputRef.current?.click();
             return;
@@ -526,8 +547,8 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact 
 
         const newBlock: ContentBlock = {
             id: uuidv4(),
-            type: 'text',
-            value: '',
+            type: type,
+            value: imageUrl || '',
         };
 
         if (afterId) {
@@ -540,31 +561,41 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact 
         }
     };
 
-    const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const [isUploading, setIsUploading] = useState(false);
+
+    const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
         const file = e.target.files?.[0];
         if (!file) return;
 
-        const reader = new FileReader();
-        reader.onload = (event) => {
-            const base64 = event.target?.result as string;
-            const newBlock: ContentBlock = {
-                id: uuidv4(),
-                type: 'image',
-                value: base64,
-            };
-
-            if (pendingImageAfterId) {
-                const index = blocks.findIndex((b) => b.id === pendingImageAfterId);
-                const newBlocks = [...blocks];
-                newBlocks.splice(index + 1, 0, newBlock);
-                onChange(newBlocks);
-            } else {
-                onChange([...blocks, newBlock]);
-            }
-            setPendingImageAfterId(null);
+        // Hiển thị ảnh NGAY LẬP TỨC
+        const localUrl = URL.createObjectURL(file);
+        const newBlock: ContentBlock = {
+            id: uuidv4(),
+            type: 'image',
+            value: localUrl,
         };
-        reader.readAsDataURL(file);
+
+        if (pendingImageAfterId) {
+            const index = blocks.findIndex((b) => b.id === pendingImageAfterId);
+            const newBlocks = [...blocks];
+            newBlocks.splice(index + 1, 0, newBlock);
+            onChange(newBlocks);
+        } else {
+            onChange([...blocks, newBlock]);
+        }
+        setPendingImageAfterId(null);
         e.target.value = '';
+
+        // Upload lên Drive ở phía sau
+        try {
+            const { uploadImageToDrive } = await import('@/lib/uploadImage');
+            const realUrl = await uploadImageToDrive(file, sessionId, sessionName);
+            updateBlock(newBlock.id, realUrl);
+        } catch (error) {
+            console.error('Failed to upload image:', error);
+        } finally {
+            URL.revokeObjectURL(localUrl);
+        }
     };
 
     const updateBlock = (id: string, value: string) => {
@@ -572,6 +603,13 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact 
     };
 
     const deleteBlock = (id: string) => {
+        // Nếu là block ảnh Drive, xóa ảnh trên Drive
+        const block = blocks.find((b) => b.id === id);
+        if (block?.type === 'image' && block.value.includes('drive.google.com')) {
+            import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                deleteImageFromDrive(block.value);
+            });
+        }
         onChange(blocks.filter((b) => b.id !== id));
     };
 
@@ -593,7 +631,7 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact 
     };
 
     // Paste handler
-    const handlePaste = useCallback((e: ClipboardEvent) => {
+    const handlePaste = useCallback(async (e: ClipboardEvent) => {
         if (readOnly) return;
 
         const items = e.clipboardData?.items;
@@ -606,21 +644,29 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact 
                 const file = item.getAsFile();
                 if (!file) continue;
 
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const base64 = event.target?.result as string;
-                    const newBlock: ContentBlock = {
-                        id: uuidv4(),
-                        type: 'image',
-                        value: base64,
-                    };
-                    onChange([...blocks, newBlock]);
+                // Hiển thị ảnh NGAY LẬP TỨC
+                const localUrl = URL.createObjectURL(file);
+                const newBlock: ContentBlock = {
+                    id: uuidv4(),
+                    type: 'image',
+                    value: localUrl,
                 };
-                reader.readAsDataURL(file);
+                onChange([...blocks, newBlock]);
+
+                // Upload lên Drive ở phía sau
+                try {
+                    const { uploadImageToDrive } = await import('@/lib/uploadImage');
+                    const realUrl = await uploadImageToDrive(file, sessionId, sessionName);
+                    updateBlock(newBlock.id, realUrl);
+                } catch (error) {
+                    console.error('Failed to upload pasted image:', error);
+                } finally {
+                    URL.revokeObjectURL(localUrl);
+                }
                 break;
             }
         }
-    }, [readOnly, blocks, onChange]);
+    }, [readOnly, blocks, onChange, updateBlock]);
 
     useEffect(() => {
         document.addEventListener('paste', handlePaste);
@@ -652,11 +698,17 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact 
                                     onUpdate={(value) => updateBlock(block.id, value)}
                                     onDelete={() => deleteBlock(block.id)}
                                     onImageClick={setZoomImage}
-                                    onAddBlock={(type, afterId) => addBlock(type, afterId)}
+                                    onAddBlock={(type, afterId, imageUrl) => addBlock(type, afterId, imageUrl)}
+                                    onUpdateAnyBlock={(oldValue, newValue) => {
+                                        const target = blocks.find(b => b.value === oldValue);
+                                        if (target) updateBlock(target.id, newValue);
+                                    }}
                                     onEnterNewBlock={handleEnterNewBlock}
                                     readOnly={readOnly}
                                     compact={compact}
                                     isLast={index === blocks.length - 1}
+                                    sessionId={sessionId}
+                                    sessionName={sessionName}
                                 />
                             ))}
                         </SortableContext>

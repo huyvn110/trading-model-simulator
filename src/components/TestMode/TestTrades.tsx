@@ -114,6 +114,8 @@ function TradeDetailsDialog({ trade: tradeProp, open, onClose, getFactorName }: 
                             blocks={contentBlocks}
                             onChange={handleContentChange}
                             placeholder="Thêm ghi chú hoặc ảnh..."
+                            sessionId={currentSession?.id}
+                            sessionName={currentSession ? `[Test] ${currentSession.name}_${new Date(currentSession.startTime).toLocaleDateString('vi-VN')}` : undefined}
                         />
                     </Box>
                 </Stack>

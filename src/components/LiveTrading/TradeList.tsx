@@ -94,6 +94,8 @@ function TradeDetailsDialog({ trade: tradeProp, open, onClose }: TradeDetailsDia
                             blocks={contentBlocks}
                             onChange={handleContentChange}
                             placeholder="Thêm ghi chú hoặc ảnh..."
+                            sessionId={currentSession?.id}
+                            sessionName={currentSession ? `[Live] ${new Date(currentSession.startTime).toLocaleDateString('vi-VN')}_${new Date(currentSession.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}` : undefined}
                         />
                     </Box>
                 </Stack>

@@ -9,6 +9,7 @@ import { MeasurementMode, Factor, ContentBlock } from '@/types';
 export interface TestTrade {
     id: string;
     timestamp: number;
+    tradeDate: string;  // Format: YYYY-MM-DD
     factorIds: string[];
     modelKey: string; // sorted factor IDs joined (stable even when names change)
     measurementValue: number;
@@ -24,6 +25,7 @@ export interface TestSession {
     name: string;
     startTime: number;
     endTime?: number;
+    initialBalance: number;  // Số dư ban đầu
     measurementMode: MeasurementMode;
     trades: TestTrade[];
 }
@@ -49,7 +51,7 @@ interface TestSessionState {
 
     // Current session
     currentSession: TestSession | null;
-    createSession: (name: string) => void;
+    createSession: (name: string, initialBalance: number) => void;
     endSession: () => void;
 
     // Sessions list
@@ -62,6 +64,7 @@ interface TestSessionState {
         factors: Factor[],
         value: number,
         result: 'win' | 'lose',
+        tradeDate?: string,
         notes?: string,
         images?: string[],
         content?: ContentBlock[]
@@ -135,7 +138,7 @@ export const useTestSessionStore = create<TestSessionState>()(
                 }
             },
 
-            createSession: (name: string) => {
+            createSession: (name: string, initialBalance: number) => {
                 const { currentSession, sessions } = get();
 
                 // If there's an existing session, end it first
@@ -152,6 +155,7 @@ export const useTestSessionStore = create<TestSessionState>()(
                     id: uuidv4(),
                     name,
                     startTime: Date.now(),
+                    initialBalance,
                     measurementMode: get().measurementMode,
                     trades: [], // Always start with empty trades
                 };
@@ -191,6 +195,11 @@ export const useTestSessionStore = create<TestSessionState>()(
             },
 
             deleteSession: (id: string) => {
+                // Xóa folder phiên trên Drive
+                import('@/lib/uploadImage').then(({ deleteSessionImages }) => {
+                    deleteSessionImages(id);
+                });
+
                 set((state) => ({
                     sessions: state.sessions.filter((s) => s.id !== id),
                     currentSession: state.currentSession?.id === id ? null : state.currentSession,
@@ -218,6 +227,7 @@ export const useTestSessionStore = create<TestSessionState>()(
                 factors: Factor[],
                 value: number,
                 result: 'win' | 'lose',
+                tradeDate?: string,
                 notes?: string,
                 images?: string[],
                 content?: ContentBlock[]
@@ -229,9 +239,13 @@ export const useTestSessionStore = create<TestSessionState>()(
                     .map((f) => f.id)
                     .sort();
 
+                // Default to current date if not provided
+                const dateStr = tradeDate || new Date().toISOString().split('T')[0];
+
                 const trade: TestTrade = {
                     id: uuidv4(),
                     timestamp: Date.now(),
+                    tradeDate: dateStr,
                     factorIds: sortedFactorIds,
                     modelKey: sortedFactorIds.join('+'), // Use IDs for stable key
                     measurementValue: value,
@@ -337,6 +351,21 @@ export const useTestSessionStore = create<TestSessionState>()(
             },
 
             deleteTrade: (tradeId: string) => {
+                const { currentSession } = get();
+                if (!currentSession) return;
+
+                // Tìm trade để xóa ảnh Drive
+                const trade = currentSession.trades.find((t) => t.id === tradeId);
+                if (trade?.content) {
+                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                        trade.content!.forEach((block) => {
+                            if (block.type === 'image' && block.value.includes('drive.google.com')) {
+                                deleteImageFromDrive(block.value);
+                            }
+                        });
+                    });
+                }
+
                 set((state) => {
                     if (!state.currentSession) return state;
 

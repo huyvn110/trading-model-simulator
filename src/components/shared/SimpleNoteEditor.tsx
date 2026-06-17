@@ -58,8 +58,10 @@ export function SimpleNoteEditor({ blocks, onChange, placeholder, readOnly }: Si
         onChange(newBlocks);
     };
 
+    const [isUploading, setIsUploading] = useState(false);
+
     // Handle paste image
-    const handlePaste = useCallback((e: React.ClipboardEvent) => {
+    const handlePaste = useCallback(async (e: React.ClipboardEvent) => {
         if (readOnly) return;
 
         const items = e.clipboardData?.items;
@@ -72,17 +74,24 @@ export function SimpleNoteEditor({ blocks, onChange, placeholder, readOnly }: Si
                 const file = item.getAsFile();
                 if (!file) continue;
 
-                const reader = new FileReader();
-                reader.onload = (event) => {
-                    const base64 = event.target?.result as string;
+                try {
+                    setIsUploading(true);
+                    // Dynamically import the upload function
+                    const { uploadImageToDrive } = await import('@/lib/uploadImage');
+                    const url = await uploadImageToDrive(file);
+                    
                     const imageBlock: ContentBlock = {
                         id: uuidv4(),
                         type: 'image',
-                        value: base64,
+                        value: url,
                     };
                     onChange([...blocks, imageBlock]);
-                };
-                reader.readAsDataURL(file);
+                } catch (error) {
+                    console.error('Failed to upload image:', error);
+                    alert('Lỗi tải ảnh lên Google Drive. Vui lòng thử lại!');
+                } finally {
+                    setIsUploading(false);
+                }
                 break;
             }
         }

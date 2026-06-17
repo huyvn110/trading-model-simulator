@@ -61,6 +61,7 @@ export type MeasurementMode = 'RR' | '$' | '%';
 export interface LiveTrade {
     id: string;
     timestamp: number;
+    tradeDate: string;  // Format: YYYY-MM-DD
     modelId: string;
     modelName: string;
     measurementValue: number;
@@ -84,6 +85,7 @@ export interface LiveSession {
     id: string;
     startTime: number;
     endTime?: number;
+    initialBalance: number;  // Số dư ban đầu
     measurementMode: MeasurementMode;
     trades: LiveTrade[];
 }

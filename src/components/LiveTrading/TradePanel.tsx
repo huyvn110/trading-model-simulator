@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
     Box,
     Typography,
@@ -28,6 +28,7 @@ import { useModelStore } from '@/store/modelStore';
 import { useLiveSessionStore } from '@/store/liveSessionStore';
 import { MeasurementMode, ContentBlock } from '@/types';
 import { NotionEditor, extractFromContentBlocks } from '@/components/shared/NotionEditor';
+import { TradeDatePicker } from '@/components/shared/TradeDatePicker';
 
 export function TradePanel() {
     const { getSelectedModel, areAllFactorsChecked, resetChecklist } = useModelStore();
@@ -36,16 +37,27 @@ export function TradePanel() {
         setMeasurementMode,
         currentSession,
         addTrade,
+        startSession,
     } = useLiveSessionStore();
 
     const [value, setValue] = useState<string>('');
     const [profitRatio, setProfitRatio] = useState<string>('');
     const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
     const [noteDialogOpen, setNoteDialogOpen] = useState(false);
+    const [tradeDate, setTradeDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [autoSyncDate, setAutoSyncDate] = useState(true);
+    const [initialBalance, setInitialBalance] = useState<string>('1000');
 
     const selectedModel = getSelectedModel();
     const isSessionActive = !!currentSession;
     const allFactorsChecked = selectedModel ? areAllFactorsChecked(selectedModel.id) : false;
+
+    // Auto-sync date to current when enabled
+    useEffect(() => {
+        if (autoSyncDate) {
+            setTradeDate(new Date().toISOString().split('T')[0]);
+        }
+    }, [autoSyncDate]);
 
     const handleAddTrade = (result: 'win' | 'lose') => {
         if (!selectedModel || !value) return;
@@ -64,6 +76,7 @@ export function TradePanel() {
             numValue,
             numProfitRatio,
             result,
+            tradeDate,
             notes.trim() || undefined,
             images.length > 0 ? images : undefined,
             contentBlocks.length > 0 ? contentBlocks : undefined
@@ -74,6 +87,7 @@ export function TradePanel() {
         setValue('');
         setProfitRatio('');
         setContentBlocks([]);
+        // Keep date as is (auto-sync will update if enabled)
     };
 
     const getModeLabel = (mode: MeasurementMode) => {
@@ -131,8 +145,11 @@ export function TradePanel() {
 
     return (
         <Box
+            className="glass-card"
             sx={{
                 p: 2.5,
+                borderRadius: 3,
+                transition: 'all 0.3s ease'
             }}
         >
             <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
@@ -164,6 +181,56 @@ export function TradePanel() {
                         </ToggleButton>
                     </ToggleButtonGroup>
                 </Box>
+
+                {/* Initial Balance & Start Session (only when no active session) */}
+                {!isSessionActive && (
+                    <Box sx={{
+                        p: 2,
+                        borderRadius: 2,
+                        bgcolor: 'grey.50',
+                        border: '1px solid',
+                        borderColor: 'grey.200'
+                    }}>
+                        <Typography variant="body2" color="text.secondary" gutterBottom>
+                            Số dư ban đầu
+                        </Typography>
+                        <TextField
+                            fullWidth
+                            size="small"
+                            type="number"
+                            value={initialBalance}
+                            onChange={(e) => setInitialBalance(e.target.value)}
+                            placeholder="VD: 1000"
+                            inputProps={{ min: 0, step: 100 }}
+                            sx={{ mb: 1.5 }}
+                            InputProps={{
+                                startAdornment: measurementMode === '$' ? (
+                                    <Typography sx={{ mr: 1, color: 'text.secondary' }}>$</Typography>
+                                ) : undefined,
+                            }}
+                            helperText="Nhập số dư để bắt đầu phiên giao dịch"
+                        />
+                        <Button
+                            variant="contained"
+                            fullWidth
+                            color="success"
+                            onClick={() => {
+                                startSession(parseFloat(initialBalance) || 0);
+                            }}
+                        >
+                            🚀 Bắt Đầu Phiên Giao Dịch
+                        </Button>
+                    </Box>
+                )}
+
+                {/* Trade Date Picker with Auto-sync */}
+                <TradeDatePicker
+                    value={tradeDate}
+                    onChange={setTradeDate}
+                    autoSync={autoSyncDate}
+                    onAutoSyncChange={setAutoSyncDate}
+                    showAutoSync={true}
+                />
 
                 {/* Selected Model */}
                 <Box>
@@ -334,6 +401,8 @@ export function TradePanel() {
                                 blocks={contentBlocks}
                                 onChange={setContentBlocks}
                                 placeholder="Type '/' for commands, or start typing..."
+                                sessionId={currentSession?.id}
+                                sessionName={currentSession ? `[Live] ${new Date(currentSession.startTime).toLocaleDateString('vi-VN')}_${new Date(currentSession.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}` : undefined}
                             />
                         </Box>
                     </DialogContent>
@@ -388,10 +457,17 @@ export function TradePanel() {
                         startIcon={<WinIcon />}
                         onClick={() => handleAddTrade('win')}
                         disabled={!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked}
+                        className={(!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked) ? '' : 'btn-win-active'}
                         sx={{
-                            py: 1.5,
-                            fontWeight: 600,
-                            fontSize: '1rem',
+                            py: 1.5, fontWeight: 800, fontSize: '0.95rem',
+                            borderRadius: 2.5, letterSpacing: '0.05em',
+                            background: (!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked)
+                                ? undefined
+                                : 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
+                            '&:not(:disabled):hover': {
+                                background: 'linear-gradient(135deg, #047857 0%, #059669 100%)',
+                                transform: 'translateY(-2px)',
+                            },
                         }}
                     >
                         WIN
@@ -404,10 +480,17 @@ export function TradePanel() {
                         startIcon={<LoseIcon />}
                         onClick={() => handleAddTrade('lose')}
                         disabled={!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked}
+                        className={(!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked) ? '' : 'btn-lose-active'}
                         sx={{
-                            py: 1.5,
-                            fontWeight: 600,
-                            fontSize: '1rem',
+                            py: 1.5, fontWeight: 800, fontSize: '0.95rem',
+                            borderRadius: 2.5, letterSpacing: '0.05em',
+                            background: (!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked)
+                                ? undefined
+                                : 'linear-gradient(135deg, #be123c 0%, #f43f5e 100%)',
+                            '&:not(:disabled):hover': {
+                                background: 'linear-gradient(135deg, #9f1239 0%, #be123c 100%)',
+                                transform: 'translateY(-2px)',
+                            },
                         }}
                     >
                         LOSE

@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState, Suspense, lazy, useMemo, useCallback } from 'react';
+import React, { useState, Suspense, lazy, useCallback, useContext } from 'react';
 import {
     Box,
     Container,
@@ -8,15 +8,13 @@ import {
     Tabs,
     Tab,
     Paper,
-    useMediaQuery,
-    useTheme,
-    ToggleButton,
-    ToggleButtonGroup,
     CircularProgress,
     Collapse,
     IconButton,
     Typography,
     Stack,
+    useTheme,
+    alpha,
 } from '@mui/material';
 import {
     Analytics as TestIcon,
@@ -31,29 +29,24 @@ import {
     SessionPanel,
     TradeRecorder,
 } from '@/components/TestMode';
-
-// Lazy load heavy components
-const TestResults = lazy(() => import('@/components/TestMode/TestResults'));
-const TestTrades = lazy(() => import('@/components/TestMode/TestTrades'));
-const TestCharts = lazy(() => import('@/components/TestMode/TestCharts'));
-const TradePanel = lazy(() => import('@/components/LiveTrading/TradePanel'));
-const TradeList = lazy(() => import('@/components/LiveTrading/TradeList'));
-const ModelStats = lazy(() => import('@/components/LiveTrading/ModelStats'));
-const LiveCharts = lazy(() => import('@/components/LiveTrading/LiveCharts'));
-const LiveSessionHistory = lazy(() => import('@/components/LiveTrading/SessionHistory'));
-const NotesPage = lazy(() => import('@/components/Notes/NotesPage'));
-
-// Import ModelList and ModelDialog directly since we need to control dialog from page level
 import { ModelList, ModelDialog } from '@/components/LiveTrading/ModelList';
 import { TradingModel } from '@/types';
+import { ThemeContext } from '@/components/ThemeRegistry';
 
-// Loading component
+// Lazy load heavy components
+const TestTrades   = lazy(() => import('@/components/TestMode/TestTrades'));
+const TestCharts   = lazy(() => import('@/components/TestMode/TestCharts'));
+const TradePanel   = lazy(() => import('@/components/LiveTrading/TradePanel'));
+const TradeList    = lazy(() => import('@/components/LiveTrading/TradeList'));
+const LiveCharts   = lazy(() => import('@/components/LiveTrading/LiveCharts'));
+const LiveSessionHistory = lazy(() => import('@/components/LiveTrading/SessionHistory'));
+const NotesPage    = lazy(() => import('@/components/Notes/NotesPage'));
+
 const LoadingFallback = () => (
-    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 4 }}>
-        <CircularProgress size={32} />
+    <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
+        <CircularProgress size={28} thickness={3} />
     </Box>
 );
-
 
 interface TabPanelProps {
     children?: React.ReactNode;
@@ -61,9 +54,7 @@ interface TabPanelProps {
     value: number;
 }
 
-function TabPanel(props: TabPanelProps) {
-    const { children, value, index, ...other } = props;
-
+function TabPanel({ children, value, index, ...other }: TabPanelProps) {
     return (
         <div
             role="tabpanel"
@@ -72,190 +63,302 @@ function TabPanel(props: TabPanelProps) {
             aria-labelledby={`results-tab-${index}`}
             {...other}
         >
-            {value === index && <Box sx={{ pt: 2 }}>{children}</Box>}
+            {value === index && (
+                <Box sx={{ pt: 2.5 }} className="fade-in">
+                    {children}
+                </Box>
+            )}
         </div>
     );
 }
 
 type AppMode = 'test' | 'live' | 'notes';
 
+// ─── Mode definitions ────────────────────────────────────────────────────────
+const MODES: {
+    id: AppMode;
+    icon: React.ReactNode;
+    label: string;
+    subtitle: string;
+    activeGradient: string;
+    activeShadow: string;
+}[] = [
+    {
+        id: 'test',
+        icon: <TestIcon sx={{ fontSize: 20 }} />,
+        label: 'Test Mode',
+        subtitle: 'Mô phỏng & phân tích',
+        activeGradient: 'linear-gradient(135deg, #2383e2 0%, #529aec 100%)',
+        activeShadow: '0 4px 20px rgba(35, 131, 226, 0.4)',
+    },
+    {
+        id: 'live',
+        icon: <LiveIcon sx={{ fontSize: 20 }} />,
+        label: 'Thực Chiến',
+        subtitle: 'Giao dịch thực tế',
+        activeGradient: 'linear-gradient(135deg, #f43f5e 0%, #fb923c 100%)',
+        activeShadow: '0 4px 20px rgba(244, 63, 94, 0.4)',
+    },
+    {
+        id: 'notes',
+        icon: <NotesIcon sx={{ fontSize: 20 }} />,
+        label: 'Notes',
+        subtitle: 'Ghi chú & quy tắc',
+        activeGradient: 'linear-gradient(135deg, #8b5cf6 0%, #a78bfa 100%)',
+        activeShadow: '0 4px 20px rgba(139, 92, 246, 0.4)',
+    },
+];
+
+// ─── Collapsible Panel Header ─────────────────────────────────────────────────
+function PanelHeader({
+    title,
+    open,
+    onToggle,
+    accentColor,
+}: {
+    title: string;
+    open: boolean;
+    onToggle: () => void;
+    accentColor?: string;
+}) {
+    const theme = useTheme();
+    return (
+        <Stack
+            direction="row"
+            alignItems="center"
+            justifyContent="space-between"
+            sx={{
+                px: 2,
+                py: 1.25,
+                cursor: 'pointer',
+                background: theme.palette.mode === 'dark'
+                    ? 'rgba(241, 245, 249, 0.04)'
+                    : 'rgba(15, 23, 42, 0.03)',
+                borderBottom: open ? '1px solid' : 'none',
+                borderColor: 'divider',
+                transition: 'background 0.2s ease',
+                '&:hover': {
+                    background: theme.palette.mode === 'dark'
+                        ? 'rgba(241, 245, 249, 0.07)'
+                        : 'rgba(15, 23, 42, 0.05)',
+                },
+            }}
+            onClick={onToggle}
+        >
+            <Stack direction="row" alignItems="center" spacing={1}>
+                {accentColor && (
+                    <Box
+                        sx={{
+                            width: 3,
+                            height: 16,
+                            borderRadius: 4,
+                            background: accentColor,
+                            flexShrink: 0,
+                        }}
+                    />
+                )}
+                <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: 700, fontSize: '0.82rem', color: 'text.primary' }}
+                >
+                    {title}
+                </Typography>
+            </Stack>
+            <IconButton size="small" sx={{ p: 0.25 }}>
+                {open
+                    ? <ExpandLessIcon sx={{ fontSize: 18 }} />
+                    : <ExpandMoreIcon sx={{ fontSize: 18 }} />}
+            </IconButton>
+        </Stack>
+    );
+}
+
+// ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Home() {
     const theme = useTheme();
-    const isMobile = useMediaQuery(theme.breakpoints.down('md'));
+    const { isDarkMode } = useContext(ThemeContext);
     const [appMode, setAppMode] = useState<AppMode>('test');
-    const [testTab, setTestTab] = useState(0);
-    const [liveTab, setLiveTab] = useState(0);
+    const [testTab, setTestTab]   = useState(0);
+    const [liveTab, setLiveTab]   = useState(0);
 
-    // Collapse states for left panels
-    const [sessionOpen, setSessionOpen] = useState(true);
-    const [factorOpen, setFactorOpen] = useState(true);
-    const [recorderOpen, setRecorderOpen] = useState(true);
-    const [liveTradeOpen, setLiveTradeOpen] = useState(true);
+    // Collapsible panels
+    const [sessionOpen,    setSessionOpen]    = useState(true);
+    const [recorderOpen,   setRecorderOpen]   = useState(true);
+    const [liveTradeOpen,  setLiveTradeOpen]  = useState(true);
 
-    // Model dialog state (lifted to close on mode switch)
+    // Model dialog
     const [modelDialogOpen, setModelDialogOpen] = useState(false);
-    const [editingModel, setEditingModel] = useState<TradingModel | null>(null);
+    const [editingModel,    setEditingModel]    = useState<TradingModel | null>(null);
 
-    // Close model dialog when mode changes
     React.useEffect(() => {
-        console.log('Mode changed to:', appMode, '- closing dialog');
         setModelDialogOpen(false);
         setEditingModel(null);
     }, [appMode]);
 
-    // Model dialog handlers
-    const handleAddModel = useCallback(() => {
-        setEditingModel(null);
-        setModelDialogOpen(true);
-    }, []);
+    const handleAddModel   = useCallback(() => { setEditingModel(null); setModelDialogOpen(true); }, []);
+    const handleEditModel  = useCallback((m: TradingModel) => { setEditingModel(m); setModelDialogOpen(true); }, []);
+    const handleCloseModelDialog = useCallback(() => { setModelDialogOpen(false); setEditingModel(null); }, []);
 
-    const handleEditModel = useCallback((model: TradingModel) => {
-        setEditingModel(model);
-        setModelDialogOpen(true);
-    }, []);
-
-    const handleCloseModelDialog = useCallback(() => {
-        setModelDialogOpen(false);
-        setEditingModel(null);
-    }, []);
+    const panelBg = isDarkMode
+        ? 'rgba(15, 22, 41, 0.6)'
+        : 'rgba(255, 255, 255, 0.8)';
+    const panelBorder = isDarkMode
+        ? '1px solid rgba(241, 245, 249, 0.08)'
+        : '1px solid rgba(15, 23, 42, 0.08)';
 
     return (
-        <Box
-            sx={{
-                minHeight: '100vh',
-                bgcolor: 'background.default',
-                display: 'flex',
-                flexDirection: 'column',
-            }}
-        >
+        <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
             <Header />
 
-            {/* Mode Switcher */}
+            {/* ── Mode Switcher ── */}
             <Box
                 sx={{
-                    display: 'flex',
-                    justifyContent: 'center',
-                    py: 2,
-                    borderBottom: '1px solid',
-                    borderColor: 'divider',
-                    bgcolor: 'background.paper',
+                    py: 2.5,
+                    px: { xs: 2, sm: 3 },
+                    bgcolor: isDarkMode ? 'rgba(10, 14, 26, 0.9)' : 'rgba(248, 250, 255, 0.9)',
+                    borderBottom: panelBorder,
+                    backdropFilter: 'blur(10px)',
                 }}
             >
-                <ToggleButtonGroup
-                    value={appMode}
-                    exclusive
-                    onChange={(_, newMode) => newMode && setAppMode(newMode)}
-                    size="medium"
-                >
-                    <ToggleButton
-                        value="test"
-                        sx={{
-                            px: 3,
-                            gap: 1,
-                            fontWeight: 600,
-                            '&.Mui-selected': {
-                                bgcolor: 'primary.main',
-                                color: 'white',
-                                '&:hover': {
-                                    bgcolor: 'primary.dark',
-                                },
-                            },
-                        }}
-                    >
-                        <TestIcon />
-                        Test Mode
-                    </ToggleButton>
-                    <ToggleButton
-                        value="live"
-                        sx={{
-                            px: 3,
-                            gap: 1,
-                            fontWeight: 600,
-                            '&.Mui-selected': {
-                                bgcolor: 'error.main',
-                                color: 'white',
-                                '&:hover': {
-                                    bgcolor: 'error.dark',
-                                },
-                            },
-                        }}
-                    >
-                        <LiveIcon />
-                        Thực Chiến
-                    </ToggleButton>
-                    <ToggleButton
-                        value="notes"
-                        sx={{
-                            px: 3,
-                            gap: 1,
-                            fontWeight: 600,
-                            '&.Mui-selected': {
-                                bgcolor: '#5c4d3c',
-                                color: 'white',
-                                '&:hover': {
-                                    bgcolor: '#4a3d2f',
-                                },
-                            },
-                        }}
-                    >
-                        <NotesIcon />
-                        Notes
-                    </ToggleButton>
-                </ToggleButtonGroup>
+                <Stack direction="row" justifyContent="center" spacing={1.5}>
+                    {MODES.map((mode) => {
+                        const isActive = appMode === mode.id;
+                        return (
+                            <Box
+                                key={mode.id}
+                                onClick={() => setAppMode(mode.id)}
+                                sx={{
+                                    display: 'flex',
+                                    flexDirection: 'column',
+                                    alignItems: 'center',
+                                    gap: 0.5,
+                                    px: { xs: 2, sm: 3.5 },
+                                    py: 1.5,
+                                    borderRadius: 3,
+                                    cursor: 'pointer',
+                                    minWidth: { xs: 90, sm: 130 },
+                                    position: 'relative',
+                                    overflow: 'hidden',
+                                    transition: 'all 0.25s ease',
+                                    background: isActive
+                                        ? mode.activeGradient
+                                        : isDarkMode
+                                            ? 'rgba(241, 245, 249, 0.05)'
+                                            : 'rgba(15, 23, 42, 0.04)',
+                                    border: '1px solid',
+                                    borderColor: isActive
+                                        ? 'transparent'
+                                        : isDarkMode
+                                            ? 'rgba(241, 245, 249, 0.08)'
+                                            : 'rgba(15, 23, 42, 0.1)',
+                                    boxShadow: isActive ? mode.activeShadow : 'none',
+                                    color: isActive ? 'white' : 'text.secondary',
+                                    transform: isActive ? 'translateY(-1px)' : 'none',
+                                    '&:hover': {
+                                        transform: 'translateY(-2px)',
+                                        background: isActive
+                                            ? mode.activeGradient
+                                            : isDarkMode
+                                                ? 'rgba(241, 245, 249, 0.09)'
+                                                : 'rgba(15, 23, 42, 0.07)',
+                                        boxShadow: isActive
+                                            ? mode.activeShadow
+                                            : isDarkMode
+                                                ? '0 4px 12px rgba(0,0,0,0.3)'
+                                                : '0 4px 12px rgba(15,23,42,0.1)',
+                                    },
+                                }}
+                            >
+                                {/* Icon */}
+                                <Box
+                                    sx={{
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'inherit',
+                                        opacity: isActive ? 1 : 0.65,
+                                        transition: 'opacity 0.2s',
+                                    }}
+                                >
+                                    {mode.icon}
+                                </Box>
+                                {/* Label */}
+                                <Typography
+                                    sx={{
+                                        fontSize: '0.82rem',
+                                        fontWeight: 700,
+                                        color: 'inherit',
+                                        lineHeight: 1.2,
+                                    }}
+                                >
+                                    {mode.label}
+                                </Typography>
+                                {/* Subtitle - only show on larger screens */}
+                                <Typography
+                                    sx={{
+                                        fontSize: '0.65rem',
+                                        color: isActive ? 'rgba(255,255,255,0.75)' : 'text.secondary',
+                                        display: { xs: 'none', sm: 'block' },
+                                        lineHeight: 1,
+                                        fontWeight: 500,
+                                    }}
+                                >
+                                    {mode.subtitle}
+                                </Typography>
+                            </Box>
+                        );
+                    })}
+                </Stack>
             </Box>
 
+            {/* ── Content ── */}
             <Container maxWidth="xl" sx={{ flex: 1, py: 3 }}>
-                {/* Test Mode - Manual Trade Recording */}
+
+                {/* Test Mode */}
                 {appMode === 'test' && (
-                    <Grid container spacing={3}>
+                    <Grid container spacing={2.5} className="mode-panel">
                         {/* Left Column */}
                         <Grid item xs={12} md={4} lg={3}>
                             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
-                                {/* Session Panel - Collapsible */}
-                                <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-                                    <Stack
-                                        direction="row"
-                                        alignItems="center"
-                                        justifyContent="space-between"
-                                        sx={{
-                                            px: 2,
-                                            py: 1,
-                                            bgcolor: 'grey.200',
-                                            cursor: 'pointer',
-                                            '&:hover': { bgcolor: 'grey.300' },
-                                        }}
-                                        onClick={() => setSessionOpen(!sessionOpen)}
-                                    >
-                                        <Typography variant="subtitle2" fontWeight={600}>📋 Session</Typography>
-                                        <IconButton size="small">
-                                            {sessionOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                                        </IconButton>
-                                    </Stack>
+                                {/* Session Panel */}
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        borderRadius: 3,
+                                        border: panelBorder,
+                                        overflow: 'hidden',
+                                        backdropFilter: 'blur(8px)',
+                                        bgcolor: panelBg,
+                                    }}
+                                >
+                                    <PanelHeader
+                                        title="📋  Session"
+                                        open={sessionOpen}
+                                        onToggle={() => setSessionOpen(o => !o)}
+                                        accentColor="linear-gradient(135deg, #2383e2, #8b5cf6)"
+                                    />
                                     <Collapse in={sessionOpen}>
                                         <SessionPanel />
                                     </Collapse>
                                 </Paper>
 
-                                {/* Factors & Trade Recorder - Combined */}
-                                <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-                                    <Stack
-                                        direction="row"
-                                        alignItems="center"
-                                        justifyContent="space-between"
-                                        sx={{
-                                            px: 2,
-                                            py: 1,
-                                            bgcolor: 'grey.200',
-                                            cursor: 'pointer',
-                                            '&:hover': { bgcolor: 'grey.300' },
-                                        }}
-                                        onClick={() => setRecorderOpen(!recorderOpen)}
-                                    >
-                                        <Typography variant="subtitle2" fontWeight={600}>✍️ Ghi Trade</Typography>
-                                        <IconButton size="small">
-                                            {recorderOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                                        </IconButton>
-                                    </Stack>
+                                {/* Factors & Recorder */}
+                                <Paper
+                                    elevation={0}
+                                    sx={{
+                                        borderRadius: 3,
+                                        border: panelBorder,
+                                        overflow: 'hidden',
+                                        backdropFilter: 'blur(8px)',
+                                        bgcolor: panelBg,
+                                    }}
+                                >
+                                    <PanelHeader
+                                        title="✍️  Ghi Trade"
+                                        open={recorderOpen}
+                                        onToggle={() => setRecorderOpen(o => !o)}
+                                        accentColor="linear-gradient(135deg, #10b981, #34d399)"
+                                    />
                                     <Collapse in={recorderOpen}>
                                         <FactorList />
                                         <TradeRecorder />
@@ -264,34 +367,25 @@ export default function Home() {
                             </Box>
                         </Grid>
 
-                        {/* Right Column - Results */}
+                        {/* Right Column */}
                         <Grid item xs={12} md={8} lg={9}>
                             <Paper
                                 elevation={0}
                                 sx={{
-                                    p: 2,
-                                    borderRadius: 2,
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    bgcolor: 'background.paper',
+                                    p: 2.5,
+                                    borderRadius: 3,
+                                    border: panelBorder,
+                                    bgcolor: panelBg,
+                                    backdropFilter: 'blur(8px)',
                                 }}
                             >
                                 <Tabs
                                     value={testTab}
-                                    onChange={(_, newValue) => setTestTab(newValue)}
-                                    sx={{
-                                        borderBottom: 1,
-                                        borderColor: 'divider',
-                                        '& .MuiTab-root': {
-                                            textTransform: 'none',
-                                            fontWeight: 500,
-                                            fontSize: '0.95rem',
-                                            minWidth: 100,
-                                        },
-                                    }}
+                                    onChange={(_, v) => setTestTab(v)}
+                                    sx={{ borderBottom: 1, borderColor: 'divider', mb: 0 }}
                                 >
-                                    <Tab label="Thống kê" />
-                                    <Tab label="Trades" />
+                                    <Tab label="Thống kê & Charts" />
+                                    <Tab label="Lịch sử Trades" />
                                 </Tabs>
 
                                 <TabPanel value={testTab} index={0}>
@@ -299,7 +393,6 @@ export default function Home() {
                                         <TestCharts />
                                     </Suspense>
                                 </TabPanel>
-
                                 <TabPanel value={testTab} index={1}>
                                     <Suspense fallback={<LoadingFallback />}>
                                         <TestTrades />
@@ -310,30 +403,27 @@ export default function Home() {
                     </Grid>
                 )}
 
-                {/* Live Mode - Model-based Trading */}
+                {/* Live Mode */}
                 {appMode === 'live' && (
-                    <Grid container spacing={3}>
-                        {/* Left Column - Models & Trade Panel Combined */}
+                    <Grid container spacing={2.5} className="mode-panel">
+                        {/* Left */}
                         <Grid item xs={12} md={4} lg={3}>
-                            <Paper elevation={0} sx={{ borderRadius: 2, border: '1px solid', borderColor: 'divider', overflow: 'hidden' }}>
-                                <Stack
-                                    direction="row"
-                                    alignItems="center"
-                                    justifyContent="space-between"
-                                    sx={{
-                                        px: 2,
-                                        py: 1,
-                                        bgcolor: 'grey.200',
-                                        cursor: 'pointer',
-                                        '&:hover': { bgcolor: 'grey.300' },
-                                    }}
-                                    onClick={() => setLiveTradeOpen(!liveTradeOpen)}
-                                >
-                                    <Typography variant="subtitle2" fontWeight={600}>🔥 Giao dịch</Typography>
-                                    <IconButton size="small">
-                                        {liveTradeOpen ? <ExpandLessIcon /> : <ExpandMoreIcon />}
-                                    </IconButton>
-                                </Stack>
+                            <Paper
+                                elevation={0}
+                                sx={{
+                                    borderRadius: 3,
+                                    border: panelBorder,
+                                    overflow: 'hidden',
+                                    backdropFilter: 'blur(8px)',
+                                    bgcolor: panelBg,
+                                }}
+                            >
+                                <PanelHeader
+                                    title="🔥  Giao dịch"
+                                    open={liveTradeOpen}
+                                    onToggle={() => setLiveTradeOpen(o => !o)}
+                                    accentColor="linear-gradient(135deg, #f43f5e, #fb923c)"
+                                />
                                 <Collapse in={liveTradeOpen}>
                                     <ModelList onAddModel={handleAddModel} onEditModel={handleEditModel} />
                                     <Suspense fallback={<LoadingFallback />}>
@@ -343,34 +433,25 @@ export default function Home() {
                             </Paper>
                         </Grid>
 
-                        {/* Right Column - Trades & Stats */}
+                        {/* Right */}
                         <Grid item xs={12} md={8} lg={9}>
                             <Paper
                                 elevation={0}
                                 sx={{
-                                    p: 2,
-                                    borderRadius: 2,
-                                    border: '1px solid',
-                                    borderColor: 'divider',
-                                    bgcolor: 'background.paper',
+                                    p: 2.5,
+                                    borderRadius: 3,
+                                    border: panelBorder,
+                                    bgcolor: panelBg,
+                                    backdropFilter: 'blur(8px)',
                                 }}
                             >
                                 <Tabs
                                     value={liveTab}
-                                    onChange={(_, newValue) => setLiveTab(newValue)}
-                                    sx={{
-                                        borderBottom: 1,
-                                        borderColor: 'divider',
-                                        '& .MuiTab-root': {
-                                            textTransform: 'none',
-                                            fontWeight: 500,
-                                            fontSize: '0.95rem',
-                                            minWidth: 100,
-                                        },
-                                    }}
+                                    onChange={(_, v) => setLiveTab(v)}
+                                    sx={{ borderBottom: 1, borderColor: 'divider' }}
                                 >
                                     <Tab label="Trades" />
-                                    <Tab label="Stats" />
+                                    <Tab label="Charts & Stats" />
                                     <Tab label="History" />
                                 </Tabs>
 
@@ -379,13 +460,11 @@ export default function Home() {
                                         <TradeList />
                                     </Suspense>
                                 </TabPanel>
-
                                 <TabPanel value={liveTab} index={1}>
                                     <Suspense fallback={<LoadingFallback />}>
                                         <LiveCharts />
                                     </Suspense>
                                 </TabPanel>
-
                                 <TabPanel value={liveTab} index={2}>
                                     <Suspense fallback={<LoadingFallback />}>
                                         <LiveSessionHistory />
@@ -398,14 +477,15 @@ export default function Home() {
 
                 {/* Notes Mode */}
                 {appMode === 'notes' && (
-                    <Suspense fallback={<LoadingFallback />}>
-                        <NotesPage />
-                    </Suspense>
+                    <Box className="mode-panel">
+                        <Suspense fallback={<LoadingFallback />}>
+                            <NotesPage />
+                        </Suspense>
+                    </Box>
                 )}
             </Container>
 
-
-            {/* Model Dialog - rendered at page level for proper state control */}
+            {/* Model Dialog */}
             <ModelDialog
                 open={modelDialogOpen}
                 onClose={handleCloseModelDialog}

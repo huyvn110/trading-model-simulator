@@ -36,11 +36,13 @@ export function ModelStats() {
         return (
             <Paper
                 elevation={0}
+                className="glass-card"
                 sx={{
                     p: 2.5,
-                    borderRadius: 2,
+                    borderRadius: 3,
                     border: '1px solid',
                     borderColor: 'divider',
+                    transition: 'all 0.3s ease',
                 }}
             >
                 <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>
@@ -60,11 +62,13 @@ export function ModelStats() {
     return (
         <Paper
             elevation={0}
+            className="glass-card"
             sx={{
                 p: 2.5,
-                borderRadius: 2,
+                borderRadius: 3,
                 border: '1px solid',
                 borderColor: 'divider',
+                transition: 'all 0.3s ease',
             }}
         >
             <Typography variant="h5" sx={{ fontWeight: 600, mb: 2 }}>

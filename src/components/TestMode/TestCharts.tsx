@@ -14,31 +14,43 @@ import {
     TableContainer,
     TableHead,
     TableRow,
-    ThemeProvider,
-    createTheme,
+    useTheme,
+    alpha,
 } from '@mui/material';
 import { useTestSessionStore } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
 import { BestModelSummary } from './BestModelSummary';
+import { TopMetrics } from '@/components/shared/TopMetrics';
+import { TradingCalendar } from '@/components/shared/TradingCalendar';
+import { EquityChart } from '@/components/shared/EquityChart';
 
-// Move theme outside component to prevent recreation on each render
-const darkTheme = createTheme({
-    palette: {
-        mode: 'dark',
-        background: { default: '#0f172a', paper: '#1e293b' },
-    },
-});
-
-// Section title style - constant
-const sectionTitleStyle = {
-    background: 'linear-gradient(to right, #60a5fa, #a78bfa)',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
-    fontWeight: 700,
-    fontSize: '1rem',
-};
+// Rank badge for model rankings
+function RankBadge({ rank }: { rank: number }) {
+    const colors: Record<number, { bg: string; color: string; label: string }> = {
+        1: { bg: 'rgba(251,191,36,0.15)', color: '#fbbf24', label: '👑' },
+        2: { bg: 'rgba(148,163,184,0.15)', color: '#94a3b8', label: '🥈' },
+        3: { bg: 'rgba(180,120,80,0.15)', color: '#cd7f32', label: '🥉' },
+    };
+    const c = colors[rank] || { bg: 'rgba(100,116,139,0.1)', color: '#64748b', label: `#${rank}` };
+    return (
+        <Box sx={{
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            px: rank <= 3 ? 0.75 : 1, py: 0.25,
+            borderRadius: 1.5,
+            bgcolor: c.bg,
+            fontSize: rank <= 3 ? '0.85rem' : '0.72rem',
+            fontWeight: 700,
+            color: c.color,
+            minWidth: 28,
+        }}>
+            {c.label}
+        </Box>
+    );
+}
 
 function TestChartsComponent() {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     const { currentSession, getCurrentSessionStats, getTotalStats } = useTestSessionStore();
     const { factors } = useFactorStore();
 
@@ -54,7 +66,17 @@ function TestChartsComponent() {
         return getCurrentSessionStats(getFactorName);
     }, [currentSession?.id, currentSession?.trades.length, factors]);
     const measurementMode = currentSession?.measurementMode || 'RR';
+    const trades = currentSession?.trades || [];
+    const initialBalance = currentSession?.initialBalance || 0;
     const sortedStats = useMemo(() => [...stats].sort((a, b) => b.winRate - a.winRate), [stats]);
+
+    // Transform TestTrade to common Trade format
+    const transformedTrades = useMemo(() => trades.map(t => ({
+        timestamp: t.timestamp,
+        tradeDate: t.tradeDate,
+        result: t.result,
+        measurementValue: t.measurementValue,
+    })), [trades]);
 
     if (!currentSession || stats.length === 0) {
         return (
@@ -69,76 +91,66 @@ function TestChartsComponent() {
 
 
 
+    const sectionTitleStyle = {
+        background: isDark
+            ? 'linear-gradient(to right, #60a5fa, #a78bfa)'
+            : 'linear-gradient(to right, #2383e2, #8b5cf6)',
+        WebkitBackgroundClip: 'text',
+        WebkitTextFillColor: 'transparent',
+        fontWeight: 700,
+        fontSize: '1rem',
+    };
+
     return (
         <Stack spacing={3}>
+            {/* Dashboard: Top Metrics */}
+            <TopMetrics trades={transformedTrades} initialBalance={initialBalance} measurementMode={measurementMode} />
+
+            {/* Dashboard: Equity Chart and Calendar */}
+            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                <Box sx={{ flex: 1 }}>
+                    <EquityChart trades={transformedTrades} initialBalance={initialBalance} measurementMode={measurementMode} />
+                </Box>
+                <Box sx={{ flex: 1 }}>
+                    <TradingCalendar trades={transformedTrades} measurementMode={measurementMode} />
+                </Box>
+            </Stack>
+
             <BestModelSummary />
 
-            <ThemeProvider theme={darkTheme}>
-                <Paper
+            <Paper
                     elevation={6}
                     sx={{
                         position: 'relative',
                         overflow: 'hidden',
-                        borderRadius: 4,
-                        background: 'radial-gradient(circle at 0% 0%, #1e293b 0%, #0f172a 100%)',
-                        padding: '1px',
-                        backgroundClip: 'padding-box',
-                        '&::before': {
-                            content: '""',
-                            position: 'absolute',
-                            top: 0,
-                            right: 0,
-                            bottom: 0,
-                            left: 0,
-                            borderRadius: 4,
-                            margin: '-1px',
-                            zIndex: -1,
-                            background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.3) 0%, rgba(15, 23, 42, 0.5) 50%, rgba(139, 92, 246, 0.2) 100%)',
-                        },
-                        boxShadow: '0 20px 50px -10px rgba(15, 23, 42, 0.7)',
+                        borderRadius: 3,
+                        background: isDark
+                            ? 'linear-gradient(135deg, rgba(15,22,41,0.95) 0%, rgba(10,14,26,0.98) 100%)'
+                            : 'linear-gradient(135deg, rgba(248,250,255,0.95) 0%, rgba(255,255,255,0.98) 100%)',
+                        border: `1px solid ${isDark ? 'rgba(241,245,249,0.08)' : 'rgba(15,23,42,0.08)'}`,
                     }}
                 >
-                    <Box sx={{
-                        bgcolor: '#0f172a',
-                        background: 'linear-gradient(180deg, rgba(30, 41, 59, 0.4) 0%, rgba(15, 23, 42, 0.6) 100%)',
-                        borderRadius: 3.5,
-                        p: 3,
-                        backdropFilter: 'blur(20px)',
-                    }}>
-                        <Box sx={{
-                            position: 'absolute',
-                            top: -100,
-                            right: -100,
-                            width: 300,
-                            height: 300,
-                            borderRadius: '50%',
-                            background: 'radial-gradient(circle, rgba(99, 102, 241, 0.08) 0%, rgba(0,0,0,0) 70%)',
-                            pointerEvents: 'none',
-                        }} />
-
-                        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 4 }}>
+                    <Box sx={{ p: 3, backdropFilter: 'blur(8px)' }}>
+                        <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
                             <Box sx={{
-                                width: 48,
-                                height: 48,
-                                borderRadius: 2,
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.2) 0%, rgba(139, 92, 246, 0.2) 100%)',
-                                border: '1px solid rgba(99, 102, 241, 0.3)',
+                                width: 44, height: 44, borderRadius: 2,
+                                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                background: 'linear-gradient(135deg, rgba(35,131,226,0.2) 0%, rgba(139,92,246,0.2) 100%)',
+                                border: `1px solid ${isDark ? 'rgba(99,102,241,0.3)' : 'rgba(35,131,226,0.25)'}`,
                             }}>
-                                <Typography sx={{ fontSize: 24 }}>📊</Typography>
+                                <Typography sx={{ fontSize: 22 }}>📊</Typography>
                             </Box>
                             <Box>
                                 <Typography variant="h5" sx={{
-                                    fontWeight: 800,
-                                    background: 'linear-gradient(135deg, #f1f5f9 0%, #e2e8f0 50%, #94a3b8 100%)',
-                                    WebkitBackgroundClip: 'text',
-                                    WebkitTextFillColor: 'transparent',
+                                    fontWeight: 800, letterSpacing: '-0.02em',
+                                    background: isDark
+                                        ? 'linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%)'
+                                        : 'linear-gradient(135deg, #0f172a 0%, #475569 100%)',
+                                    WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent',
                                 }}>
                                     Thống Kê Chi Tiết
                                 </Typography>
-                                <Typography variant="caption" sx={{ color: '#64748b' }}>
+                                <Typography variant="caption" sx={{ color: 'text.secondary' }}>
                                     Phân tích hiệu suất trading models
                                 </Typography>
                             </Box>
@@ -337,9 +349,9 @@ function TestChartsComponent() {
                                         </TableHead>
                                         <TableBody>
                                             {sortedStats.map((stat, index) => (
-                                                <TableRow key={stat.modelKey} sx={{ '&:hover': { bgcolor: 'rgba(255,255,255,0.02)' } }}>
-                                                    <TableCell sx={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
-                                                        <Typography sx={{ fontWeight: 700, color: index === 0 ? '#6366f1' : '#64748b' }}>#{index + 1}</Typography>
+                                                <TableRow key={stat.modelKey} sx={{ '&:hover': { bgcolor: isDark ? 'rgba(241,245,249,0.02)' : 'rgba(15,23,42,0.02)' } }}>
+                                                    <TableCell sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                                                        <RankBadge rank={index + 1} />
                                                     </TableCell>
                                                     <TableCell sx={{ borderBottom: '1px solid rgba(255,255,255,0.05)' }}>
                                                         <Stack direction="row" spacing={0.5} flexWrap="wrap" useFlexGap>
@@ -379,7 +391,6 @@ function TestChartsComponent() {
                         </Stack>
                     </Box>
                 </Paper>
-            </ThemeProvider>
         </Stack>
     );
 }

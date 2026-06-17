@@ -18,7 +18,7 @@ interface LiveSessionState {
 
     // Current session
     currentSession: LiveSession | null;
-    startSession: () => void;
+    startSession: (initialBalance: number) => void;
     endSession: () => void;
 
     // Trade management
@@ -28,6 +28,7 @@ interface LiveSessionState {
         value: number,
         profitRatio: number | undefined,
         result: 'win' | 'lose',
+        tradeDate?: string,
         notes?: string,
         images?: string[],
         content?: ContentBlock[]
@@ -98,10 +99,11 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                 }
             },
 
-            startSession: () => {
+            startSession: (initialBalance: number) => {
                 const session: LiveSession = {
                     id: uuidv4(),
                     startTime: Date.now(),
+                    initialBalance,
                     measurementMode: get().measurementMode,
                     trades: [],
                 };
@@ -130,6 +132,7 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                 value: number,
                 profitRatio: number | undefined,
                 result: 'win' | 'lose',
+                tradeDate?: string,
                 notes?: string,
                 images?: string[],
                 content?: ContentBlock[]
@@ -146,9 +149,13 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                     }
                 }
 
+                // Default to current date if not provided
+                const dateStr = tradeDate || new Date().toISOString().split('T')[0];
+
                 const trade: LiveTrade = {
                     id: uuidv4(),
                     timestamp: Date.now(),
+                    tradeDate: dateStr,
                     modelId,
                     modelName,
                     measurementValue: finalValue,
@@ -161,10 +168,11 @@ export const useLiveSessionStore = create<LiveSessionState>()(
 
                 set((state) => {
                     if (!state.currentSession) {
-                        // Auto-start session if not started
+                        // Auto-start session if not started (with default balance 0)
                         const session: LiveSession = {
                             id: uuidv4(),
                             startTime: Date.now(),
+                            initialBalance: 0,  // Default, user should start session explicitly
                             measurementMode: state.measurementMode,
                             trades: [trade],
                         };
@@ -249,6 +257,21 @@ export const useLiveSessionStore = create<LiveSessionState>()(
             },
 
             deleteTrade: (tradeId: string) => {
+                const { currentSession } = get();
+                if (!currentSession) return;
+
+                // Tìm trade để xóa ảnh Drive
+                const trade = currentSession.trades.find((t) => t.id === tradeId);
+                if (trade?.content) {
+                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                        trade.content!.forEach((block) => {
+                            if (block.type === 'image' && block.value.includes('drive.google.com')) {
+                                deleteImageFromDrive(block.value);
+                            }
+                        });
+                    });
+                }
+
                 set((state) => {
                     if (!state.currentSession) return state;
 
@@ -266,6 +289,11 @@ export const useLiveSessionStore = create<LiveSessionState>()(
             },
 
             deleteSessionFromHistory: (sessionId: string) => {
+                // Xóa folder phiên trên Drive
+                import('@/lib/uploadImage').then(({ deleteSessionImages }) => {
+                    deleteSessionImages(sessionId);
+                });
+
                 set((state) => ({
                     sessionHistory: state.sessionHistory.filter((s) => s.id !== sessionId),
                 }));

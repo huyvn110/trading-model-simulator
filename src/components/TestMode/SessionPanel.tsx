@@ -59,6 +59,7 @@ export function SessionPanel() {
     const { factors } = useFactorStore();
 
     const [sessionName, setSessionName] = useState('');
+    const [initialBalance, setInitialBalance] = useState<string>('1000');
 
     // Duplicate name warning state
     const [duplicateWarningOpen, setDuplicateWarningOpen] = useState(false);
@@ -210,8 +211,9 @@ export function SessionPanel() {
             return;
         }
 
-        createSession(name);
+        createSession(name, parseFloat(initialBalance) || 0);
         setSessionName('');
+        setInitialBalance('1000');  // Reset to default
     };
 
     const formatDate = (timestamp: number) => {
@@ -314,6 +316,26 @@ export function SessionPanel() {
                         %
                     </ToggleButton>
                 </ToggleButtonGroup>
+
+                {/* Initial Balance Input */}
+                <TextField
+                    fullWidth
+                    size="small"
+                    label="Số dư ban đầu"
+                    type="number"
+                    value={initialBalance}
+                    onChange={(e) => setInitialBalance(e.target.value)}
+                    disabled={!!currentSession}
+                    placeholder="VD: 1000"
+                    inputProps={{ min: 0, step: 100 }}
+                    sx={{ mb: 1.5 }}
+                    InputProps={{
+                        startAdornment: measurementMode === '$' ? (
+                            <Typography sx={{ mr: 1, color: 'text.secondary' }}>$</Typography>
+                        ) : undefined,
+                    }}
+                    helperText="Số dư ban đầu để tính equity curve"
+                />
 
                 <Button
                     variant="contained"
