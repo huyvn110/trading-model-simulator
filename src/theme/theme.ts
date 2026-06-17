@@ -25,8 +25,6 @@ const colors = {
 
     // Dark "Midnight" palette
     midnight: {
-        50: '#f0f4ff',
-        100: '#e0e8ff',
         900: '#0a0e1a',
         800: '#0f1629',
         700: '#131d35',
