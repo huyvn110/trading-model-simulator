@@ -262,11 +262,16 @@ export const useLiveSessionStore = create<LiveSessionState>()(
 
                 // Tìm trade để xóa ảnh Drive
                 const trade = currentSession.trades.find((t) => t.id === tradeId);
-                if (trade?.content) {
+                if (trade) {
                     import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
-                        trade.content!.forEach((block) => {
+                        trade.content?.forEach((block) => {
                             if (block.type === 'image' && block.value.includes('drive.google.com')) {
                                 deleteImageFromDrive(block.value);
+                            }
+                        });
+                        trade.images?.forEach((imgUrl) => {
+                            if (imgUrl.includes('drive.google.com')) {
+                                deleteImageFromDrive(imgUrl);
                             }
                         });
                     });
@@ -289,6 +294,27 @@ export const useLiveSessionStore = create<LiveSessionState>()(
             },
 
             deleteSessionFromHistory: (sessionId: string) => {
+                const { sessionHistory } = get();
+                const sessionToDelete = sessionHistory.find((s) => s.id === sessionId);
+
+                // Xóa từng ảnh của tất cả các trade trong phiên (fallback cho ảnh legacy hoặc ảnh ngoài folder)
+                if (sessionToDelete) {
+                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                        sessionToDelete.trades.forEach((trade) => {
+                            trade.content?.forEach((block) => {
+                                if (block.type === 'image' && block.value.includes('drive.google.com')) {
+                                    deleteImageFromDrive(block.value);
+                                }
+                            });
+                            trade.images?.forEach((imgUrl) => {
+                                if (imgUrl.includes('drive.google.com')) {
+                                    deleteImageFromDrive(imgUrl);
+                                }
+                            });
+                        });
+                    });
+                }
+
                 // Xóa folder phiên trên Drive
                 import('@/lib/uploadImage').then(({ deleteSessionImages }) => {
                     deleteSessionImages(sessionId);

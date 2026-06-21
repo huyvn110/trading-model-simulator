@@ -135,7 +135,9 @@ function SortableBlock({
             onUpdateAnyBlock(localUrl, realUrl);
         } catch (error) {
             console.error('Failed to upload image:', error);
-            // Ảnh vẫn hiển thị tạm bằng blob URL, không mất
+            // Xóa ảnh tạm (blob URL) khỏi editor vì upload lỗi
+            onDelete();
+            alert("Tải ảnh thất bại! Vui lòng ĐĂNG XUẤT và ĐĂNG NHẬP LẠI ứng dụng để cấp quyền truy cập Google Drive.");
         } finally {
             URL.revokeObjectURL(localUrl);
         }
@@ -593,6 +595,8 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact,
             updateBlock(newBlock.id, realUrl);
         } catch (error) {
             console.error('Failed to upload image:', error);
+            deleteBlock(newBlock.id);
+            alert("Tải ảnh thất bại! Vui lòng ĐĂNG XUẤT và ĐĂNG NHẬP LẠI ứng dụng để cấp quyền truy cập Google Drive.");
         } finally {
             URL.revokeObjectURL(localUrl);
         }
@@ -660,13 +664,15 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact,
                     updateBlock(newBlock.id, realUrl);
                 } catch (error) {
                     console.error('Failed to upload pasted image:', error);
+                    deleteBlock(newBlock.id);
+                    alert("Tải ảnh thất bại! Vui lòng ĐĂNG XUẤT và ĐĂNG NHẬP LẠI ứng dụng để cấp quyền truy cập Google Drive.");
                 } finally {
                     URL.revokeObjectURL(localUrl);
                 }
                 break;
             }
         }
-    }, [readOnly, blocks, onChange, updateBlock]);
+    }, [readOnly, blocks, onChange, updateBlock, sessionId, sessionName]);
 
     useEffect(() => {
         document.addEventListener('paste', handlePaste);

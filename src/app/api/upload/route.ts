@@ -168,7 +168,11 @@ export async function DELETE(request: Request) {
         try {
           await drive.files.delete({ fileId });
         } catch (e: any) {
-          console.log('File already deleted or not found:', fileId);
+          if (e.code === 404) {
+            console.log('File already deleted or not found:', fileId);
+          } else {
+            throw e;
+          }
         }
       }
       return NextResponse.json({ success: true });
@@ -185,18 +189,28 @@ export async function DELETE(request: Request) {
         .single();
 
       if (saved?.state?.folderId) {
+        let deletedSuccessfully = false;
         try {
           await drive.files.delete({ fileId: saved.state.folderId });
+          deletedSuccessfully = true;
         } catch (e: any) {
-          console.log('Session folder already deleted:', saved.state.folderId);
+          if (e.code === 404) {
+            console.log('Session folder already deleted:', saved.state.folderId);
+            deletedSuccessfully = true;
+          } else {
+            console.error('Failed to delete session folder from Drive:', e.message || e);
+            throw e;
+          }
         }
 
-        // Xóa record trong Supabase
-        await supabaseAdmin
-          .from('user_stores')
-          .delete()
-          .eq('email', email)
-          .eq('store_name', storeKey);
+        // Chỉ xóa record trong Supabase nếu Drive folder đã được xóa thành công hoặc không tồn tại
+        if (deletedSuccessfully) {
+          await supabaseAdmin
+            .from('user_stores')
+            .delete()
+            .eq('email', email)
+            .eq('store_name', storeKey);
+        }
       }
       return NextResponse.json({ success: true });
     }

@@ -82,9 +82,13 @@ export async function deleteImageFromDrive(imageUrl: string): Promise<void> {
     if (!imageUrl.includes('drive.google.com')) return;
 
     try {
-        await fetch(`/api/upload?url=${encodeURIComponent(imageUrl)}`, {
+        const response = await fetch(`/api/upload?url=${encodeURIComponent(imageUrl)}`, {
             method: 'DELETE',
         });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server returned ${response.status}: ${errorText}`);
+        }
     } catch (error) {
         console.error('Failed to delete image from Drive:', error);
     }
@@ -96,9 +100,13 @@ export async function deleteImageFromDrive(imageUrl: string): Promise<void> {
  */
 export async function deleteSessionImages(sessionId: string): Promise<void> {
     try {
-        await fetch(`/api/upload?sessionId=${encodeURIComponent(sessionId)}`, {
+        const response = await fetch(`/api/upload?sessionId=${encodeURIComponent(sessionId)}`, {
             method: 'DELETE',
         });
+        if (!response.ok) {
+            const errorText = await response.text();
+            throw new Error(`Server returned ${response.status}: ${errorText}`);
+        }
     } catch (error) {
         console.error('Failed to delete session folder from Drive:', error);
     }

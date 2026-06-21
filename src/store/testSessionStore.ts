@@ -195,6 +195,29 @@ export const useTestSessionStore = create<TestSessionState>()(
             },
 
             deleteSession: (id: string) => {
+                const { sessions, currentSession } = get();
+                const sessionToDelete = sessions.find((s) => s.id === id) || (currentSession?.id === id ? currentSession : null);
+
+                // Xóa từng ảnh của tất cả các trade trong phiên (fallback cho ảnh legacy hoặc ảnh ngoài folder)
+                if (sessionToDelete) {
+                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                        sessionToDelete.trades.forEach((trade) => {
+                            // Xóa ảnh dạng content blocks
+                            trade.content?.forEach((block) => {
+                                if (block.type === 'image' && block.value.includes('drive.google.com')) {
+                                    deleteImageFromDrive(block.value);
+                                }
+                            });
+                            // Xóa ảnh dạng legacy
+                            trade.images?.forEach((imgUrl) => {
+                                if (imgUrl.includes('drive.google.com')) {
+                                    deleteImageFromDrive(imgUrl);
+                                }
+                            });
+                        });
+                    });
+                }
+
                 // Xóa folder phiên trên Drive
                 import('@/lib/uploadImage').then(({ deleteSessionImages }) => {
                     deleteSessionImages(id);
@@ -356,11 +379,16 @@ export const useTestSessionStore = create<TestSessionState>()(
 
                 // Tìm trade để xóa ảnh Drive
                 const trade = currentSession.trades.find((t) => t.id === tradeId);
-                if (trade?.content) {
+                if (trade) {
                     import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
-                        trade.content!.forEach((block) => {
+                        trade.content?.forEach((block) => {
                             if (block.type === 'image' && block.value.includes('drive.google.com')) {
                                 deleteImageFromDrive(block.value);
+                            }
+                        });
+                        trade.images?.forEach((imgUrl) => {
+                            if (imgUrl.includes('drive.google.com')) {
+                                deleteImageFromDrive(imgUrl);
                             }
                         });
                     });
