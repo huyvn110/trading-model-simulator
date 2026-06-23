@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import { v4 as uuidv4 } from 'uuid';
 import { MeasurementMode, Factor, ContentBlock } from '@/types';
+import { isIdbImageRef, extractIdbKey, deleteImageBlob } from '@/lib/imageStore';
 
 // Test trade entry
 export interface TestTrade {
@@ -198,22 +199,28 @@ export const useTestSessionStore = create<TestSessionState>()(
                 const { sessions, currentSession } = get();
                 const sessionToDelete = sessions.find((s) => s.id === id) || (currentSession?.id === id ? currentSession : null);
 
-                // Xóa từng ảnh của tất cả các trade trong phiên (fallback cho ảnh legacy hoặc ảnh ngoài folder)
+                // Xóa ảnh của tất cả các trade trong phiên
                 if (sessionToDelete) {
-                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
-                        sessionToDelete.trades.forEach((trade) => {
-                            // Xóa ảnh dạng content blocks
-                            trade.content?.forEach((block) => {
-                                if (block.type === 'image' && block.value.includes('drive.google.com')) {
-                                    deleteImageFromDrive(block.value);
+                    sessionToDelete.trades.forEach((trade) => {
+                        trade.content?.forEach((block) => {
+                            if (block.type === 'image') {
+                                if (isIdbImageRef(block.value)) {
+                                    deleteImageBlob(extractIdbKey(block.value));
+                                } else if (block.value.includes('drive.google.com')) {
+                                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                                        deleteImageFromDrive(block.value);
+                                    });
                                 }
-                            });
-                            // Xóa ảnh dạng legacy
-                            trade.images?.forEach((imgUrl) => {
-                                if (imgUrl.includes('drive.google.com')) {
+                            }
+                        });
+                        trade.images?.forEach((imgUrl) => {
+                            if (isIdbImageRef(imgUrl)) {
+                                deleteImageBlob(extractIdbKey(imgUrl));
+                            } else if (imgUrl.includes('drive.google.com')) {
+                                import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
                                     deleteImageFromDrive(imgUrl);
-                                }
-                            });
+                                });
+                            }
                         });
                     });
                 }
@@ -377,20 +384,28 @@ export const useTestSessionStore = create<TestSessionState>()(
                 const { currentSession } = get();
                 if (!currentSession) return;
 
-                // Tìm trade để xóa ảnh Drive
+                // Tìm trade để xóa ảnh Drive hoặc IDB
                 const trade = currentSession.trades.find((t) => t.id === tradeId);
                 if (trade) {
-                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
-                        trade.content?.forEach((block) => {
-                            if (block.type === 'image' && block.value.includes('drive.google.com')) {
-                                deleteImageFromDrive(block.value);
+                    trade.content?.forEach((block) => {
+                        if (block.type === 'image') {
+                            if (isIdbImageRef(block.value)) {
+                                deleteImageBlob(extractIdbKey(block.value));
+                            } else if (block.value.includes('drive.google.com')) {
+                                import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                                    deleteImageFromDrive(block.value);
+                                });
                             }
-                        });
-                        trade.images?.forEach((imgUrl) => {
-                            if (imgUrl.includes('drive.google.com')) {
+                        }
+                    });
+                    trade.images?.forEach((imgUrl) => {
+                        if (isIdbImageRef(imgUrl)) {
+                            deleteImageBlob(extractIdbKey(imgUrl));
+                        } else if (imgUrl.includes('drive.google.com')) {
+                            import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
                                 deleteImageFromDrive(imgUrl);
-                            }
-                        });
+                            });
+                        }
                     });
                 }
 

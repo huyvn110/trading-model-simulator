@@ -13,6 +13,9 @@ import {
 } from '@mui/icons-material';
 import { ContentBlock } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import { saveImageBlob, deleteImageBlob, isIdbImageRef, extractIdbKey, createIdbRef } from '@/lib/imageStore';
+import { compressImageFile } from '@/lib/uploadImage';
+import { IdbImage } from '@/components/shared/IdbImage';
 
 interface SimpleNoteEditorProps {
     blocks: ContentBlock[];
@@ -76,19 +79,21 @@ export function SimpleNoteEditor({ blocks, onChange, placeholder, readOnly }: Si
 
                 try {
                     setIsUploading(true);
-                    // Dynamically import the upload function
-                    const { uploadImageToDrive } = await import('@/lib/uploadImage');
-                    const url = await uploadImageToDrive(file);
+                    // Compress and save to IndexedDB instantly
+                    const compressedBlob = await compressImageFile(file);
+                    const imgKey = `img-${uuidv4()}`;
+                    await saveImageBlob(imgKey, compressedBlob);
+                    const idbRef = createIdbRef(imgKey);
                     
                     const imageBlock: ContentBlock = {
                         id: uuidv4(),
                         type: 'image',
-                        value: url,
+                        value: idbRef,
                     };
                     onChange([...blocks, imageBlock]);
                 } catch (error) {
-                    console.error('Failed to upload image:', error);
-                    alert('Lỗi tải ảnh lên Google Drive. Vui lòng thử lại!');
+                    console.error('Failed to save image:', error);
+                    alert('Lỗi lưu ảnh. Vui lòng thử lại!');
                 } finally {
                     setIsUploading(false);
                 }
@@ -99,6 +104,17 @@ export function SimpleNoteEditor({ blocks, onChange, placeholder, readOnly }: Si
 
     // Delete image
     const handleDeleteImage = (imageId: string) => {
+        const block = blocks.find(b => b.id === imageId);
+        if (block?.type === 'image') {
+            if (isIdbImageRef(block.value)) {
+                const key = extractIdbKey(block.value);
+                deleteImageBlob(key);
+            } else if (block.value.includes('drive.google.com')) {
+                import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                    deleteImageFromDrive(block.value);
+                });
+            }
+        }
         onChange(blocks.filter(b => b.id !== imageId));
     };
 
@@ -140,7 +156,7 @@ export function SimpleNoteEditor({ blocks, onChange, placeholder, readOnly }: Si
                                     '&:hover .delete-btn': { opacity: 1 },
                                 }}
                             >
-                                <img
+                                <IdbImage
                                     src={img.value}
                                     alt="Note"
                                     style={{
@@ -194,7 +210,7 @@ export function SimpleNoteEditor({ blocks, onChange, placeholder, readOnly }: Si
                         }}
                         onClick={() => setZoomImage(null)}
                     >
-                        <img
+                        <IdbImage
                             src={zoomImage}
                             alt="Zoom"
                             style={{

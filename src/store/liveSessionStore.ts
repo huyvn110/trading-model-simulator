@@ -10,6 +10,7 @@ import {
     LiveModelStats,
     ContentBlock,
 } from '@/types';
+import { isIdbImageRef, extractIdbKey, deleteImageBlob } from '@/lib/imageStore';
 
 interface LiveSessionState {
     // Settings
@@ -260,20 +261,29 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                 const { currentSession } = get();
                 if (!currentSession) return;
 
-                // Tìm trade để xóa ảnh Drive
+                // Tìm trade để xóa ảnh Drive hoặc IDB
                 const trade = currentSession.trades.find((t) => t.id === tradeId);
                 if (trade) {
-                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
-                        trade.content?.forEach((block) => {
-                            if (block.type === 'image' && block.value.includes('drive.google.com')) {
-                                deleteImageFromDrive(block.value);
+                    // Clean up images
+                    trade.content?.forEach((block) => {
+                        if (block.type === 'image') {
+                            if (isIdbImageRef(block.value)) {
+                                deleteImageBlob(extractIdbKey(block.value));
+                            } else if (block.value.includes('drive.google.com')) {
+                                import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                                    deleteImageFromDrive(block.value);
+                                });
                             }
-                        });
-                        trade.images?.forEach((imgUrl) => {
-                            if (imgUrl.includes('drive.google.com')) {
+                        }
+                    });
+                    trade.images?.forEach((imgUrl) => {
+                        if (isIdbImageRef(imgUrl)) {
+                            deleteImageBlob(extractIdbKey(imgUrl));
+                        } else if (imgUrl.includes('drive.google.com')) {
+                            import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
                                 deleteImageFromDrive(imgUrl);
-                            }
-                        });
+                            });
+                        }
                     });
                 }
 
@@ -297,20 +307,28 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                 const { sessionHistory } = get();
                 const sessionToDelete = sessionHistory.find((s) => s.id === sessionId);
 
-                // Xóa từng ảnh của tất cả các trade trong phiên (fallback cho ảnh legacy hoặc ảnh ngoài folder)
+                // Xóa từng ảnh của tất cả các trade trong phiên
                 if (sessionToDelete) {
-                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
-                        sessionToDelete.trades.forEach((trade) => {
-                            trade.content?.forEach((block) => {
-                                if (block.type === 'image' && block.value.includes('drive.google.com')) {
-                                    deleteImageFromDrive(block.value);
+                    sessionToDelete.trades.forEach((trade) => {
+                        trade.content?.forEach((block) => {
+                            if (block.type === 'image') {
+                                if (isIdbImageRef(block.value)) {
+                                    deleteImageBlob(extractIdbKey(block.value));
+                                } else if (block.value.includes('drive.google.com')) {
+                                    import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                                        deleteImageFromDrive(block.value);
+                                    });
                                 }
-                            });
-                            trade.images?.forEach((imgUrl) => {
-                                if (imgUrl.includes('drive.google.com')) {
+                            }
+                        });
+                        trade.images?.forEach((imgUrl) => {
+                            if (isIdbImageRef(imgUrl)) {
+                                deleteImageBlob(extractIdbKey(imgUrl));
+                            } else if (imgUrl.includes('drive.google.com')) {
+                                import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
                                     deleteImageFromDrive(imgUrl);
-                                }
-                            });
+                                });
+                            }
                         });
                     });
                 }

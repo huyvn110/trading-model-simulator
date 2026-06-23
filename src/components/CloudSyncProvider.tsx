@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useSession } from 'next-auth/react';
 import { useLiveSessionStore } from '@/store/liveSessionStore';
+import { SyncManager } from '@/components/shared/SyncManager';
 
 export default function CloudSyncProvider({ children }: { children: React.ReactNode }) {
     const { data: session, status } = useSession();
@@ -72,5 +73,5 @@ export default function CloudSyncProvider({ children }: { children: React.ReactN
         };
     }, [status, session]);
 
-    return <>{children}</>;
+    return <><SyncManager />{children}</>;
 }

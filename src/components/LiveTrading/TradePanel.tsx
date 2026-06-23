@@ -26,9 +26,12 @@ import {
 } from '@mui/icons-material';
 import { useModelStore } from '@/store/modelStore';
 import { useLiveSessionStore } from '@/store/liveSessionStore';
+import { useUploadQueueStore, PendingUpload } from '@/store/uploadQueueStore';
 import { MeasurementMode, ContentBlock } from '@/types';
 import { NotionEditor, extractFromContentBlocks } from '@/components/shared/NotionEditor';
 import { TradeDatePicker } from '@/components/shared/TradeDatePicker';
+import { isIdbImageRef } from '@/lib/imageStore';
+import { v4 as uuidv4 } from 'uuid';
 
 export function TradePanel() {
     const { getSelectedModel, areAllFactorsChecked, resetChecklist } = useModelStore();
@@ -39,6 +42,7 @@ export function TradePanel() {
         addTrade,
         startSession,
     } = useLiveSessionStore();
+    const { enqueue } = useUploadQueueStore();
 
     const [value, setValue] = useState<string>('');
     const [profitRatio, setProfitRatio] = useState<string>('');
@@ -81,6 +85,39 @@ export function TradePanel() {
             images.length > 0 ? images : undefined,
             contentBlocks.length > 0 ? contentBlocks : undefined
         );
+
+        // After addTrade, get the newly created trade to find its ID
+        // The trade was just appended, so it's the last one in currentSession
+        const liveState = useLiveSessionStore.getState();
+        const trades = liveState.currentSession?.trades || [];
+        const newTrade = trades[trades.length - 1];
+
+        if (newTrade && contentBlocks.length > 0) {
+            // Find all idb:// image references and enqueue them for background upload
+            const pendingUploads: PendingUpload[] = [];
+            contentBlocks.forEach((block) => {
+                if (block.type === 'image' && isIdbImageRef(block.value)) {
+                    pendingUploads.push({
+                        id: uuidv4(),
+                        idbKey: block.value.replace('idb://', ''),
+                        idbRef: block.value,
+                        sessionId: liveState.currentSession?.id,
+                        sessionName: liveState.currentSession
+                            ? `[Live] ${new Date(liveState.currentSession.startTime).toLocaleDateString('vi-VN')}_${new Date(liveState.currentSession.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}`
+                            : undefined,
+                        status: 'pending',
+                        retryCount: 0,
+                        createdAt: Date.now(),
+                        storeType: 'live',
+                        tradeId: newTrade.id,
+                    });
+                }
+            });
+
+            if (pendingUploads.length > 0) {
+                enqueue(pendingUploads);
+            }
+        }
 
         // Reset checklist and form after trade
         resetChecklist(selectedModel.id);

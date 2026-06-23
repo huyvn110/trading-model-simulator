@@ -37,6 +37,9 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 import { ContentBlock } from '@/types';
 import { v4 as uuidv4 } from 'uuid';
+import { saveImageBlob, deleteImageBlob, isIdbImageRef, extractIdbKey, createIdbRef } from '@/lib/imageStore';
+import { compressImageFile } from '@/lib/uploadImage';
+import { IdbImage } from '@/components/shared/IdbImage';
 
 interface NotionEditorProps {
     blocks: ContentBlock[];
@@ -121,25 +124,17 @@ function SortableBlock({
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Hiển thị ảnh NGAY LẬP TỨC bằng blob URL
-        const localUrl = URL.createObjectURL(file);
-        const newBlockId = uuidv4();
-        onAddBlock('image', block.id, localUrl);
-
-        // Upload lên Drive ở phía sau (background)
         e.target.value = '';
         try {
-            const { uploadImageToDrive } = await import('@/lib/uploadImage');
-            const realUrl = await uploadImageToDrive(file, sessionId, sessionName);
-            // Thay thế blob URL bằng URL thật từ Drive
-            onUpdateAnyBlock(localUrl, realUrl);
+            // Compress and save to IndexedDB instantly
+            const compressedBlob = await compressImageFile(file);
+            const imgKey = `img-${uuidv4()}`;
+            await saveImageBlob(imgKey, compressedBlob);
+            const idbRef = createIdbRef(imgKey);
+            onAddBlock('image', block.id, idbRef);
         } catch (error) {
-            console.error('Failed to upload image:', error);
-            // Xóa ảnh tạm (blob URL) khỏi editor vì upload lỗi
-            onDelete();
-            alert("Tải ảnh thất bại! Vui lòng ĐĂNG XUẤT và ĐĂNG NHẬP LẠI ứng dụng để cấp quyền truy cập Google Drive.");
-        } finally {
-            URL.revokeObjectURL(localUrl);
+            console.error('Failed to save image locally:', error);
+            alert('Lỗi lưu ảnh. Vui lòng thử lại!');
         }
     };
 
@@ -265,7 +260,7 @@ function SortableBlock({
                         }}
                         onClick={() => onImageClick(block.value)}
                     >
-                        <img
+                        <IdbImage
                             src={block.value}
                             alt="Content"
                             style={{
@@ -569,36 +564,33 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact,
         const file = e.target.files?.[0];
         if (!file) return;
 
-        // Hiển thị ảnh NGAY LẬP TỨC
-        const localUrl = URL.createObjectURL(file);
-        const newBlock: ContentBlock = {
-            id: uuidv4(),
-            type: 'image',
-            value: localUrl,
-        };
-
-        if (pendingImageAfterId) {
-            const index = blocks.findIndex((b) => b.id === pendingImageAfterId);
-            const newBlocks = [...blocks];
-            newBlocks.splice(index + 1, 0, newBlock);
-            onChange(newBlocks);
-        } else {
-            onChange([...blocks, newBlock]);
-        }
-        setPendingImageAfterId(null);
         e.target.value = '';
 
-        // Upload lên Drive ở phía sau
         try {
-            const { uploadImageToDrive } = await import('@/lib/uploadImage');
-            const realUrl = await uploadImageToDrive(file, sessionId, sessionName);
-            updateBlock(newBlock.id, realUrl);
+            // Compress and save to IndexedDB instantly
+            const compressedBlob = await compressImageFile(file);
+            const imgKey = `img-${uuidv4()}`;
+            await saveImageBlob(imgKey, compressedBlob);
+            const idbRef = createIdbRef(imgKey);
+
+            const newBlock: ContentBlock = {
+                id: uuidv4(),
+                type: 'image',
+                value: idbRef,
+            };
+
+            if (pendingImageAfterId) {
+                const index = blocks.findIndex((b) => b.id === pendingImageAfterId);
+                const newBlocks = [...blocks];
+                newBlocks.splice(index + 1, 0, newBlock);
+                onChange(newBlocks);
+            } else {
+                onChange([...blocks, newBlock]);
+            }
+            setPendingImageAfterId(null);
         } catch (error) {
-            console.error('Failed to upload image:', error);
-            deleteBlock(newBlock.id);
-            alert("Tải ảnh thất bại! Vui lòng ĐĂNG XUẤT và ĐĂNG NHẬP LẠI ứng dụng để cấp quyền truy cập Google Drive.");
-        } finally {
-            URL.revokeObjectURL(localUrl);
+            console.error('Failed to save image locally:', error);
+            alert('Lỗi lưu ảnh. Vui lòng thử lại!');
         }
     };
 
@@ -607,12 +599,18 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact,
     };
 
     const deleteBlock = (id: string) => {
-        // Nếu là block ảnh Drive, xóa ảnh trên Drive
         const block = blocks.find((b) => b.id === id);
-        if (block?.type === 'image' && block.value.includes('drive.google.com')) {
-            import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
-                deleteImageFromDrive(block.value);
-            });
+        if (block?.type === 'image') {
+            if (isIdbImageRef(block.value)) {
+                // Delete from IndexedDB
+                const key = extractIdbKey(block.value);
+                deleteImageBlob(key);
+            } else if (block.value.includes('drive.google.com')) {
+                // Delete from Drive
+                import('@/lib/uploadImage').then(({ deleteImageFromDrive }) => {
+                    deleteImageFromDrive(block.value);
+                });
+            }
         }
         onChange(blocks.filter((b) => b.id !== id));
     };
@@ -648,31 +646,27 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact,
                 const file = item.getAsFile();
                 if (!file) continue;
 
-                // Hiển thị ảnh NGAY LẬP TỨC
-                const localUrl = URL.createObjectURL(file);
-                const newBlock: ContentBlock = {
-                    id: uuidv4(),
-                    type: 'image',
-                    value: localUrl,
-                };
-                onChange([...blocks, newBlock]);
-
-                // Upload lên Drive ở phía sau
                 try {
-                    const { uploadImageToDrive } = await import('@/lib/uploadImage');
-                    const realUrl = await uploadImageToDrive(file, sessionId, sessionName);
-                    updateBlock(newBlock.id, realUrl);
+                    // Compress and save to IndexedDB instantly
+                    const compressedBlob = await compressImageFile(file);
+                    const imgKey = `img-${uuidv4()}`;
+                    await saveImageBlob(imgKey, compressedBlob);
+                    const idbRef = createIdbRef(imgKey);
+
+                    const newBlock: ContentBlock = {
+                        id: uuidv4(),
+                        type: 'image',
+                        value: idbRef,
+                    };
+                    onChange([...blocks, newBlock]);
                 } catch (error) {
-                    console.error('Failed to upload pasted image:', error);
-                    deleteBlock(newBlock.id);
-                    alert("Tải ảnh thất bại! Vui lòng ĐĂNG XUẤT và ĐĂNG NHẬP LẠI ứng dụng để cấp quyền truy cập Google Drive.");
-                } finally {
-                    URL.revokeObjectURL(localUrl);
+                    console.error('Failed to save pasted image:', error);
+                    alert('Lỗi lưu ảnh. Vui lòng thử lại!');
                 }
                 break;
             }
         }
-    }, [readOnly, blocks, onChange, updateBlock, sessionId, sessionName]);
+    }, [readOnly, blocks, onChange]);
 
     useEffect(() => {
         document.addEventListener('paste', handlePaste);
@@ -753,7 +747,7 @@ export function NotionEditor({ blocks, onChange, placeholder, readOnly, compact,
                         }}
                         onClick={() => setZoomImage(null)}
                     >
-                        <img
+                        <IdbImage
                             src={zoomImage}
                             alt="Zoom"
                             style={{

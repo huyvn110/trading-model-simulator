@@ -1,7 +1,7 @@
 /**
  * Nén ảnh trước khi upload - giảm 80-90% dung lượng
  */
-async function compressImage(file: File, maxWidth = 1600, quality = 0.75): Promise<Blob> {
+export async function compressImage(file: File, maxWidth = 1600, quality = 0.75): Promise<Blob> {
     return new Promise((resolve, reject) => {
         const img = new Image();
         const canvas = document.createElement('canvas');
@@ -38,6 +38,14 @@ async function compressImage(file: File, maxWidth = 1600, quality = 0.75): Promi
         img.onerror = () => reject(new Error('Failed to load image'));
         img.src = URL.createObjectURL(file);
     });
+}
+
+/**
+ * Compress a File to a Blob (convenience wrapper for external use)
+ * Used by editors that need to compress before saving to IndexedDB
+ */
+export async function compressImageFile(file: File, maxWidth = 1600, quality = 0.75): Promise<Blob> {
+    return compressImage(file, maxWidth, quality);
 }
 
 /**

@@ -26,14 +26,18 @@ import {
 } from '@mui/icons-material';
 import { useTestSessionStore } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
+import { useUploadQueueStore, PendingUpload } from '@/store/uploadQueueStore';
 import { NotionEditor, extractFromContentBlocks } from '@/components/shared/NotionEditor';
 import { TradeDatePicker } from '@/components/shared/TradeDatePicker';
 import { ContentBlock } from '@/types';
 import { FACTOR_COLORS } from '@/theme/theme';
+import { isIdbImageRef } from '@/lib/imageStore';
+import { v4 as uuidv4 } from 'uuid';
 
 export function TradeRecorder() {
     const { currentSession, addTrade } = useTestSessionStore();
     const { factors } = useFactorStore();
+    const { enqueue } = useUploadQueueStore();
     const selectedFactors = factors.filter(f => f.selected);
 
     const [value, setValue] = useState('');
@@ -77,6 +81,38 @@ export function TradeRecorder() {
             images.length > 0 ? images : undefined,
             contentBlocks.length > 0 ? contentBlocks : undefined,
         );
+
+        // After addTrade, get the newly created trade to find its ID
+        const testState = useTestSessionStore.getState();
+        const trades = testState.currentSession?.trades || [];
+        const newTrade = trades[trades.length - 1];
+
+        if (newTrade && contentBlocks.length > 0) {
+            // Find all idb:// image references and enqueue them for background upload
+            const pendingUploads: PendingUpload[] = [];
+            contentBlocks.forEach((block) => {
+                if (block.type === 'image' && isIdbImageRef(block.value)) {
+                    pendingUploads.push({
+                        id: uuidv4(),
+                        idbKey: block.value.replace('idb://', ''),
+                        idbRef: block.value,
+                        sessionId: testState.currentSession?.id,
+                        sessionName: testState.currentSession
+                            ? `[Test] ${testState.currentSession.name}_${new Date(testState.currentSession.startTime).toLocaleDateString('vi-VN')}`
+                            : undefined,
+                        status: 'pending',
+                        retryCount: 0,
+                        createdAt: Date.now(),
+                        storeType: 'test',
+                        tradeId: newTrade.id,
+                    });
+                }
+            });
+
+            if (pendingUploads.length > 0) {
+                enqueue(pendingUploads);
+            }
+        }
 
         setValue('');
         setProfitRatio('');
