@@ -529,7 +529,7 @@ export async function exportLiveSessionToExcel(session: LiveSession): Promise<vo
     overviewSheet.addRow(['Kết thúc:', session.endTime ? formatDate(session.endTime) : 'Đang tiến hành']);
     overviewSheet.addRow([]);
 
-    const trades = session.trades;
+    const trades = session.trades.map(t => ({ ...t, measurementValue: t.measurementValue ?? 0 }));
     const wins = trades.filter(t => t.result === 'win').length;
     const losses = trades.filter(t => t.result === 'lose').length;
     const winRate = trades.length > 0 ? (wins / trades.length) * 100 : 0;
