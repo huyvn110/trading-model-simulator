@@ -44,10 +44,16 @@ const SESSIONS = ['Asia', 'London', 'NY'];
 const MISTAKES = ['None', 'FOMO', 'Moved SL', 'Không đợi cisd', 'Vào sớm', 'Sai cấu trúc', 'Lỗi tâm lý'];
 
 export function TradeRecorder() {
-    const { currentSession, addTrade } = useTestSessionStore();
+    const { currentSession, sessionHistory, addTrade } = useTestSessionStore();
     const { factors } = useFactorStore();
     const { enqueue } = useUploadQueueStore();
     const selectedFactors = factors.filter(f => f.selected);
+
+    // Extract dynamic options from history
+    const allTrades = [...(currentSession?.trades || []), ...sessionHistory.flatMap(s => s.trades)];
+    const uniqueMarkets = Array.from(new Set([...COMMON_MARKETS, ...allTrades.map(t => t.market).filter(Boolean) as string[]]));
+    const uniqueSessions = Array.from(new Set([...SESSIONS, ...allTrades.map(t => t.session).filter(Boolean) as string[]]));
+    const uniqueMistakes = Array.from(new Set([...MISTAKES, ...allTrades.map(t => t.mistake).filter(Boolean) as string[]]));
 
     // Form state
     const [tradeDate, setTradeDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -239,18 +245,20 @@ export function TradeRecorder() {
                         <Grid item xs={6}>
                             <Autocomplete
                                 freeSolo
-                                options={COMMON_MARKETS}
+                                options={uniqueMarkets}
                                 value={market}
-                                onInputChange={(_, newValue) => setMarket(newValue)}
+                                onChange={(_, newValue) => setMarket(newValue || '')}
+                                onInputChange={(_, newInputValue) => setMarket(newInputValue)}
                                 renderInput={(params) => <TextField {...params} label="Market" size="small" />}
                             />
                         </Grid>
                         <Grid item xs={6}>
                             <Autocomplete
                                 freeSolo
-                                options={SESSIONS}
+                                options={uniqueSessions}
                                 value={session}
-                                onInputChange={(_, newValue) => setSession(newValue)}
+                                onChange={(_, newValue) => setSession(newValue || '')}
+                                onInputChange={(_, newInputValue) => setSession(newInputValue)}
                                 renderInput={(params) => <TextField {...params} label="Session" size="small" />}
                             />
                         </Grid>
@@ -315,9 +323,10 @@ export function TradeRecorder() {
                         <Grid item xs={12}>
                             <Autocomplete
                                 freeSolo
-                                options={MISTAKES}
+                                options={uniqueMistakes}
                                 value={mistake}
-                                onInputChange={(_, newValue) => setMistake(newValue)}
+                                onChange={(_, newValue) => setMistake(newValue || '')}
+                                onInputChange={(_, newInputValue) => setMistake(newInputValue)}
                                 renderInput={(params) => <TextField {...params} label="Lỗi / Mistake" size="small" />}
                             />
                         </Grid>

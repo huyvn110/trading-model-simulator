@@ -45,9 +45,16 @@ export function TradePanel() {
         measurementMode,
         setMeasurementMode,
         currentSession,
+        sessionHistory,
         addTrade,
         startSession,
     } = useLiveSessionStore();
+
+    // Extract dynamic options from history
+    const allTrades = [...(currentSession?.trades || []), ...sessionHistory.flatMap(s => s.trades)];
+    const uniqueMarkets = Array.from(new Set([...COMMON_MARKETS, ...allTrades.map(t => t.market).filter(Boolean) as string[]]));
+    const uniqueSessions = Array.from(new Set([...SESSIONS, ...allTrades.map(t => t.session).filter(Boolean) as string[]]));
+    const uniqueMistakes = Array.from(new Set([...MISTAKES, ...allTrades.map(t => t.mistake).filter(Boolean) as string[]]));
     const { enqueue } = useUploadQueueStore();
 
     // Form state
@@ -243,18 +250,20 @@ export function TradePanel() {
                         <Grid item xs={6}>
                             <Autocomplete
                                 freeSolo
-                                options={COMMON_MARKETS}
+                                options={uniqueMarkets}
                                 value={market}
-                                onInputChange={(_, newValue) => setMarket(newValue)}
+                                onChange={(_, newValue) => setMarket(newValue || '')}
+                                onInputChange={(_, newInputValue) => setMarket(newInputValue)}
                                 renderInput={(params) => <TextField {...params} label="Market" size="small" />}
                             />
                         </Grid>
                         <Grid item xs={6}>
                             <Autocomplete
                                 freeSolo
-                                options={SESSIONS}
+                                options={uniqueSessions}
                                 value={session}
-                                onInputChange={(_, newValue) => setSession(newValue)}
+                                onChange={(_, newValue) => setSession(newValue || '')}
+                                onInputChange={(_, newInputValue) => setSession(newInputValue)}
                                 renderInput={(params) => <TextField {...params} label="Session" size="small" />}
                             />
                         </Grid>
@@ -337,9 +346,10 @@ export function TradePanel() {
                         <Grid item xs={12}>
                             <Autocomplete
                                 freeSolo
-                                options={MISTAKES}
+                                options={uniqueMistakes}
                                 value={mistake}
-                                onInputChange={(_, newValue) => setMistake(newValue)}
+                                onChange={(_, newValue) => setMistake(newValue || '')}
+                                onInputChange={(_, newInputValue) => setMistake(newInputValue)}
                                 renderInput={(params) => <TextField {...params} label="Lỗi / Mistake" size="small" />}
                             />
                         </Grid>
