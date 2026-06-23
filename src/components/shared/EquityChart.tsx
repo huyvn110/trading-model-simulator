@@ -8,6 +8,8 @@ interface Trade {
     tradeDate?: string;
     result: 'win' | 'lose';
     measurementValue: number;
+    pnl?: number;
+    rr?: number;
 }
 
 interface EquityChartProps {
@@ -22,6 +24,12 @@ export function EquityChart({ trades, initialBalance, measurementMode }: EquityC
     const [hoveredIdx, setHoveredIdx] = useState<number | null>(null);
 
     const chartData = useMemo(() => {
+        const getValue = (t: Trade) => {
+            if (measurementMode === '$') return t.pnl !== undefined ? t.pnl : t.measurementValue;
+            if (measurementMode === 'RR') return t.rr !== undefined ? t.rr : t.measurementValue;
+            return t.measurementValue;
+        };
+
         if (trades.length === 0) return [];
         const points: { index: number; balance: number; label: string; result?: string }[] = [];
         let balance = initialBalance;
@@ -29,11 +37,11 @@ export function EquityChart({ trades, initialBalance, measurementMode }: EquityC
 
         trades.forEach((trade, idx) => {
             if (measurementMode === '$' || measurementMode === 'RR') {
-                balance += trade.result === 'win' ? trade.measurementValue : -trade.measurementValue;
+                balance += trade.result === 'win' ? getValue(trade) : -getValue(trade);
             } else {
                 balance *= trade.result === 'win'
-                    ? (1 + trade.measurementValue / 100)
-                    : (1 - trade.measurementValue / 100);
+                    ? (1 + getValue(trade) / 100)
+                    : (1 - getValue(trade) / 100);
             }
             points.push({ index: idx + 1, balance, label: `#${idx + 1}`, result: trade.result });
         });

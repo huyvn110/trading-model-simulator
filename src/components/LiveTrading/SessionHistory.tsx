@@ -148,7 +148,7 @@ function SessionDetailDialog({ session, open, onClose }: SessionDetailDialogProp
                                             </TableCell>
                                             <TableCell align="right">
                                                 <Typography fontWeight={500}>
-                                                    {formatValue(trade.measurementValue)}
+                                                    {formatValue(trade.measurementValue ?? 0)}
                                                 </Typography>
                                             </TableCell>
                                             <TableCell align="center">
@@ -224,7 +224,7 @@ function SessionDetailDialog({ session, open, onClose }: SessionDetailDialogProp
                                         </Box>
                                         <Box>
                                             <Typography variant="caption" color="text.secondary">Giá trị</Typography>
-                                            <Typography fontWeight={600}>{formatValue(selectedTrade.measurementValue)}</Typography>
+                                            <Typography fontWeight={600}>{formatValue(selectedTrade.measurementValue ?? 0)}</Typography>
                                         </Box>
                                         <Box>
                                             <Typography variant="caption" color="text.secondary">Thời gian</Typography>

@@ -14,10 +14,12 @@ import {
     IconButton,
     Tooltip,
     Dialog,
-    DialogTitle,
     DialogContent,
     DialogActions,
     Badge,
+    Autocomplete,
+    Grid,
+    Divider
 } from '@mui/material';
 import {
     Check as WinIcon,
@@ -33,6 +35,10 @@ import { TradeDatePicker } from '@/components/shared/TradeDatePicker';
 import { isIdbImageRef } from '@/lib/imageStore';
 import { v4 as uuidv4 } from 'uuid';
 
+const COMMON_MARKETS = ['mgc', 'mNQ', 'ES', 'NQ', 'GC', 'CL'];
+const SESSIONS = ['Asia', 'London', 'NY'];
+const MISTAKES = ['None', 'FOMO', 'Moved SL', 'Không đợi cisd', 'Vào sớm', 'Sai cấu trúc', 'Lỗi tâm lý'];
+
 export function TradePanel() {
     const { getSelectedModel, areAllFactorsChecked, resetChecklist } = useModelStore();
     const {
@@ -44,11 +50,29 @@ export function TradePanel() {
     } = useLiveSessionStore();
     const { enqueue } = useUploadQueueStore();
 
+    // Form state
+    const [tradeDate, setTradeDate] = useState<string>(new Date().toISOString().split('T')[0]);
+    const [tradeTime, setTradeTime] = useState<string>(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
+    const [market, setMarket] = useState<string>('');
+    const [session, setSession] = useState<string>('');
+    const [bias, setBias] = useState<'long' | 'short'>('long');
+    
+    // Performance
+    const [pnl, setPnl] = useState<string>('');
+    const [rr, setRr] = useState<string>('');
+    const [rrValue, setRrValue] = useState<string>('');
+    
+    // Psychology
+    const [followPlan, setFollowPlan] = useState<'yes' | 'no'>('yes');
+    const [emotion, setEmotion] = useState<string>('');
+    const [mistake, setMistake] = useState<string>('');
+
+    // Legacy values
     const [value, setValue] = useState<string>('');
     const [profitRatio, setProfitRatio] = useState<string>('');
+    
     const [contentBlocks, setContentBlocks] = useState<ContentBlock[]>([]);
     const [noteDialogOpen, setNoteDialogOpen] = useState(false);
-    const [tradeDate, setTradeDate] = useState<string>(new Date().toISOString().split('T')[0]);
     const [autoSyncDate, setAutoSyncDate] = useState(true);
     const [initialBalance, setInitialBalance] = useState<string>('1000');
 
@@ -60,40 +84,59 @@ export function TradePanel() {
     useEffect(() => {
         if (autoSyncDate) {
             setTradeDate(new Date().toISOString().split('T')[0]);
+            setTradeTime(new Date().toLocaleTimeString('en-US', { hour12: false, hour: '2-digit', minute: '2-digit' }));
         }
     }, [autoSyncDate]);
 
     const handleAddTrade = (result: 'win' | 'lose') => {
-        if (!selectedModel || !value) return;
+        if (!selectedModel) return;
 
-        const numValue = parseFloat(value);
-        if (isNaN(numValue) || numValue <= 0) return;
+        // Legacy compatibility (if user still uses MeasurementMode)
+        let numValue = parseFloat(value);
+        if (isNaN(numValue)) numValue = 0;
+        let numProfitRatio = profitRatio ? parseFloat(profitRatio) : undefined;
 
-        const numProfitRatio = profitRatio ? parseFloat(profitRatio) : undefined;
+        // New explicit fields
+        const numPnL = pnl ? parseFloat(pnl) : undefined;
+        const numRR = rr ? parseFloat(rr) : undefined;
+        const numRRValue = rrValue ? parseFloat(rrValue) : undefined;
 
-        // Extract notes and images from content blocks for backward compatibility
+        // Ensure we have at least legacy value if PnL is empty, to not break old logic
+        // But if PnL is provided, we can rely on it.
+        if (!numPnL && !numValue) {
+            // Require at least something if no PnL
+            // return;
+        }
+
         const { notes, images } = extractFromContentBlocks(contentBlocks);
 
-        addTrade(
-            selectedModel.id,
-            selectedModel.name,
-            numValue,
-            numProfitRatio,
+        addTrade({
+            modelId: selectedModel.id,
+            modelName: selectedModel.name,
             result,
             tradeDate,
-            notes.trim() || undefined,
-            images.length > 0 ? images : undefined,
-            contentBlocks.length > 0 ? contentBlocks : undefined
-        );
+            tradeTime,
+            market,
+            session,
+            bias,
+            pnl: numPnL,
+            rr: numRR,
+            rrValue: numRRValue,
+            measurementValue: numValue,
+            profitRatio: numProfitRatio,
+            followPlan,
+            emotion,
+            mistake,
+            notes: notes.trim() || undefined,
+            images: images.length > 0 ? images : undefined,
+            content: contentBlocks.length > 0 ? contentBlocks : undefined
+        });
 
-        // After addTrade, get the newly created trade to find its ID
-        // The trade was just appended, so it's the last one in currentSession
         const liveState = useLiveSessionStore.getState();
         const trades = liveState.currentSession?.trades || [];
         const newTrade = trades[trades.length - 1];
 
         if (newTrade && contentBlocks.length > 0) {
-            // Find all idb:// image references and enqueue them for background upload
             const pendingUploads: PendingUpload[] = [];
             contentBlocks.forEach((block) => {
                 if (block.type === 'image' && isIdbImageRef(block.value)) {
@@ -123,61 +166,12 @@ export function TradePanel() {
         resetChecklist(selectedModel.id);
         setValue('');
         setProfitRatio('');
+        setPnl('');
+        setRr('');
+        setRrValue('');
+        setEmotion('');
         setContentBlocks([]);
-        // Keep date as is (auto-sync will update if enabled)
-    };
-
-    const getModeLabel = (mode: MeasurementMode) => {
-        switch (mode) {
-            case 'RR':
-                return 'RR';
-            case '$':
-                return '$';
-            case '%':
-                return '%';
-        }
-    };
-
-    const getValueLabel = () => {
-        switch (measurementMode) {
-            case 'RR':
-                return 'R:R Value';
-            case '$':
-                return 'Dollar Amount';
-            case '%':
-                return 'Percentage';
-        }
-    };
-
-    const getValueSuffix = () => {
-        switch (measurementMode) {
-            case 'RR':
-                return 'R';
-            case '$':
-                return '$';
-            case '%':
-                return '%';
-        }
-    };
-
-    const getProfitLabel = () => {
-        switch (measurementMode) {
-            case 'RR':
-                return 'Tỷ lệ lời (x)';
-            case '$':
-            case '%':
-                return 'Tỷ lệ lời (%)';
-        }
-    };
-
-    const getProfitPlaceholder = () => {
-        switch (measurementMode) {
-            case 'RR':
-                return 'VD: 1.5 (= 1.5x)';
-            case '$':
-            case '%':
-                return 'VD: 50 (= 50%)';
-        }
+        if (!mistake || mistake === 'None') setMistake('');
     };
 
     return (
@@ -194,40 +188,9 @@ export function TradePanel() {
             </Typography>
 
             <Stack spacing={2.5}>
-                {/* Measurement Mode */}
-                <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Measurement Mode {isSessionActive && '(locked)'}
-                    </Typography>
-                    <ToggleButtonGroup
-                        value={measurementMode}
-                        exclusive
-                        onChange={(_, newMode) => newMode && setMeasurementMode(newMode)}
-                        disabled={isSessionActive}
-                        fullWidth
-                        size="small"
-                    >
-                        <ToggleButton value="RR" sx={{ fontWeight: 600 }}>
-                            RR
-                        </ToggleButton>
-                        <ToggleButton value="$" sx={{ fontWeight: 600 }}>
-                            $
-                        </ToggleButton>
-                        <ToggleButton value="%" sx={{ fontWeight: 600 }}>
-                            %
-                        </ToggleButton>
-                    </ToggleButtonGroup>
-                </Box>
-
-                {/* Initial Balance & Start Session (only when no active session) */}
+                {/* Initial Balance & Start Session */}
                 {!isSessionActive && (
-                    <Box sx={{
-                        p: 2,
-                        borderRadius: 2,
-                        bgcolor: 'grey.50',
-                        border: '1px solid',
-                        borderColor: 'grey.200'
-                    }}>
+                    <Box sx={{ p: 2, borderRadius: 2, bgcolor: 'grey.50', border: '1px solid', borderColor: 'grey.200' }}>
                         <Typography variant="body2" color="text.secondary" gutterBottom>
                             Số dư ban đầu
                         </Typography>
@@ -238,312 +201,225 @@ export function TradePanel() {
                             value={initialBalance}
                             onChange={(e) => setInitialBalance(e.target.value)}
                             placeholder="VD: 1000"
-                            inputProps={{ min: 0, step: 100 }}
                             sx={{ mb: 1.5 }}
-                            InputProps={{
-                                startAdornment: measurementMode === '$' ? (
-                                    <Typography sx={{ mr: 1, color: 'text.secondary' }}>$</Typography>
-                                ) : undefined,
-                            }}
-                            helperText="Nhập số dư để bắt đầu phiên giao dịch"
                         />
                         <Button
                             variant="contained"
                             fullWidth
                             color="success"
-                            onClick={() => {
-                                startSession(parseFloat(initialBalance) || 0);
-                            }}
+                            onClick={() => startSession(parseFloat(initialBalance) || 0)}
                         >
                             🚀 Bắt Đầu Phiên Giao Dịch
                         </Button>
                     </Box>
                 )}
 
-                {/* Trade Date Picker with Auto-sync */}
-                <TradeDatePicker
-                    value={tradeDate}
-                    onChange={setTradeDate}
-                    autoSync={autoSyncDate}
-                    onAutoSyncChange={setAutoSyncDate}
-                    showAutoSync={true}
-                />
-
-                {/* Selected Model */}
+                {/* 1. Basic Info */}
                 <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                        Selected Model
+                    <Typography variant="subtitle2" color="primary" sx={{ mb: 1, textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700 }}>
+                        Thông tin cơ bản
+                    </Typography>
+                    <Grid container spacing={1.5}>
+                        <Grid item xs={6}>
+                            <TradeDatePicker
+                                value={tradeDate}
+                                onChange={setTradeDate}
+                                autoSync={autoSyncDate}
+                                onAutoSyncChange={setAutoSyncDate}
+                                showAutoSync={true}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <TextField
+                                label="Time"
+                                type="time"
+                                value={tradeTime}
+                                onChange={(e) => setTradeTime(e.target.value)}
+                                size="small"
+                                fullWidth
+                                InputLabelProps={{ shrink: true }}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <Autocomplete
+                                freeSolo
+                                options={COMMON_MARKETS}
+                                value={market}
+                                onInputChange={(_, newValue) => setMarket(newValue)}
+                                renderInput={(params) => <TextField {...params} label="Market" size="small" />}
+                            />
+                        </Grid>
+                        <Grid item xs={6}>
+                            <Autocomplete
+                                freeSolo
+                                options={SESSIONS}
+                                value={session}
+                                onInputChange={(_, newValue) => setSession(newValue)}
+                                renderInput={(params) => <TextField {...params} label="Session" size="small" />}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <ToggleButtonGroup
+                                value={bias}
+                                exclusive
+                                onChange={(_, newBias) => newBias && setBias(newBias)}
+                                fullWidth
+                                size="small"
+                            >
+                                <ToggleButton value="long" sx={{ fontWeight: 600, color: 'success.main', '&.Mui-selected': { bgcolor: 'success.light', color: 'success.dark' } }}>Long</ToggleButton>
+                                <ToggleButton value="short" sx={{ fontWeight: 600, color: 'error.main', '&.Mui-selected': { bgcolor: 'error.light', color: 'error.dark' } }}>Short</ToggleButton>
+                            </ToggleButtonGroup>
+                        </Grid>
+                    </Grid>
+                </Box>
+
+                <Divider />
+
+                {/* 2. Setup & Strategy */}
+                <Box>
+                    <Typography variant="subtitle2" color="primary" sx={{ mb: 1, textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700 }}>
+                        Setup (Model & Factor)
                     </Typography>
                     {selectedModel ? (
-                        <Chip
-                            label={selectedModel.name}
-                            color="primary"
-                            sx={{ fontWeight: 500 }}
-                        />
+                        <Chip label={selectedModel.name} color="primary" sx={{ fontWeight: 500, width: '100%', justifyContent: 'flex-start', mb: 1 }} />
                     ) : (
-                        <Alert severity="info" sx={{ py: 0.5 }}>
-                            Select a model from the list
-                        </Alert>
+                        <Alert severity="info" sx={{ py: 0.5, mb: 1 }}>Chọn một Model từ danh sách bên cạnh</Alert>
+                    )}
+                    
+                    {selectedModel && selectedModel.factors.length > 0 && !allFactorsChecked && (
+                        <Alert severity="warning" sx={{ py: 0.5 }}>Vui lòng check hết factors trước khi trade!</Alert>
                     )}
                 </Box>
 
-                {/* Value Input */}
+                <Divider />
+
+                {/* 3. Performance & Results */}
                 <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                        {getValueLabel()}
+                    <Typography variant="subtitle2" color="primary" sx={{ mb: 1, textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700 }}>
+                        Kết quả & Lợi nhuận
                     </Typography>
-                    <TextField
-                        type="number"
-                        value={value}
-                        onChange={(e) => setValue(e.target.value)}
-                        size="small"
-                        fullWidth
-                        placeholder={`Enter ${getValueLabel().toLowerCase()}`}
-                        InputProps={{
-                            endAdornment: (
-                                <Typography color="text.secondary" sx={{ ml: 1 }}>
-                                    {getValueSuffix()}
-                                </Typography>
-                            ),
-                        }}
-                        inputProps={{ min: 0, step: 0.1 }}
-                    />
+                    <Grid container spacing={1.5}>
+                        <Grid item xs={4}>
+                            <TextField label="PnL ($)" type="number" value={pnl} onChange={(e) => setPnl(e.target.value)} size="small" fullWidth />
+                        </Grid>
+                        <Grid item xs={4}>
+                            <TextField label="RR" type="number" value={rr} onChange={(e) => setRr(e.target.value)} size="small" fullWidth />
+                        </Grid>
+                        <Grid item xs={4}>
+                            <TextField label="RR Value" type="number" value={rrValue} onChange={(e) => setRrValue(e.target.value)} size="small" fullWidth />
+                        </Grid>
+                    </Grid>
                 </Box>
 
-                {/* Profit Ratio */}
+                <Divider />
+
+                {/* 4. Psychology & Review */}
                 <Box>
-                    <Typography variant="body2" color="text.secondary" gutterBottom>
-                        {getProfitLabel()}
+                    <Typography variant="subtitle2" color="primary" sx={{ mb: 1, textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700 }}>
+                        Tâm lý & Đánh giá
                     </Typography>
-                    <TextField
-                        type="number"
-                        value={profitRatio}
-                        onChange={(e) => setProfitRatio(e.target.value)}
-                        size="small"
-                        fullWidth
-                        placeholder={getProfitPlaceholder()}
-                        helperText={
-                            measurementMode === 'RR'
-                                ? 'Nhân với giá trị ở trên khi thắng (VD: 1.5x)'
-                                : 'Phần trăm lợi nhuận (VD: 50 = +50%)'
-                        }
-                        inputProps={{ min: 0, step: 0.1 }}
-                    />
+                    <Grid container spacing={1.5}>
+                        <Grid item xs={12}>
+                            <Typography variant="body2" color="text.secondary" gutterBottom>
+                                Có Follow đúng Plan không?
+                            </Typography>
+                            <ToggleButtonGroup
+                                value={followPlan}
+                                exclusive
+                                onChange={(_, newValue) => newValue && setFollowPlan(newValue)}
+                                fullWidth
+                                size="small"
+                            >
+                                <ToggleButton value="yes" sx={{ fontWeight: 600 }}>Yes</ToggleButton>
+                                <ToggleButton value="no" sx={{ fontWeight: 600 }}>No</ToggleButton>
+                            </ToggleButtonGroup>
+                        </Grid>
+                        <Grid item xs={12}>
+                            <Autocomplete
+                                freeSolo
+                                options={MISTAKES}
+                                value={mistake}
+                                onInputChange={(_, newValue) => setMistake(newValue)}
+                                renderInput={(params) => <TextField {...params} label="Lỗi / Mistake" size="small" />}
+                            />
+                        </Grid>
+                        <Grid item xs={12}>
+                            <TextField
+                                label="Cảm xúc (Emotion)"
+                                value={emotion}
+                                onChange={(e) => setEmotion(e.target.value)}
+                                size="small"
+                                fullWidth
+                            />
+                        </Grid>
+                    </Grid>
                 </Box>
 
-                {/* Note Icon */}
+                {/* Note */}
                 <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                     <Typography variant="body2" color="text.secondary">
-                        Ghi chú:
+                        Nhật ký hình ảnh / Ghi chú:
                     </Typography>
-                    <Tooltip title={contentBlocks.length > 0 ? 'Chỉnh sửa ghi chú' : 'Thêm ghi chú'}>
+                    <Tooltip title="Chỉnh sửa ghi chú">
                         <IconButton
                             onClick={() => setNoteDialogOpen(true)}
                             sx={{
                                 color: contentBlocks.length > 0 ? 'primary.main' : 'grey.500',
                                 bgcolor: contentBlocks.length > 0 ? 'primary.light' : 'grey.100',
-                                '&:hover': {
-                                    bgcolor: contentBlocks.length > 0 ? 'primary.main' : 'grey.200',
-                                    color: contentBlocks.length > 0 ? 'white' : 'grey.700',
-                                },
                             }}
                         >
-                            <Badge
-                                badgeContent={contentBlocks.length > 0 ? '✓' : null}
-                                color="success"
-                                sx={{ '& .MuiBadge-badge': { fontSize: '0.6rem', minWidth: 14, height: 14 } }}
-                            >
+                            <Badge badgeContent={contentBlocks.length > 0 ? '✓' : null} color="success">
                                 <NoteIcon />
                             </Badge>
                         </IconButton>
                     </Tooltip>
-                    {contentBlocks.length > 0 && (
-                        <Typography variant="caption" color="success.main">
-                            Đã có ghi chú
-                        </Typography>
-                    )}
                 </Box>
 
-                {/* Note Dialog - Notion Style */}
-                <Dialog
-                    open={noteDialogOpen}
-                    onClose={() => setNoteDialogOpen(false)}
-                    maxWidth="md"
-                    fullWidth
-                    PaperProps={{
-                        sx: {
-                            bgcolor: '#191919',
-                            color: 'white',
-                            minHeight: '70vh',
-                            maxHeight: '85vh',
-                            borderRadius: 2,
-                        },
-                    }}
-                >
-                    {/* Notion-style Header */}
-                    <Box
-                        sx={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            px: 3,
-                            py: 2,
-                            borderBottom: '1px solid #2f2f2f',
-                        }}
-                    >
-                        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1.5 }}>
-                            <NoteIcon sx={{ color: '#9f9f9f', fontSize: 24 }} />
-                            <Typography
-                                variant="h5"
-                                sx={{
-                                    fontWeight: 700,
-                                    color: 'white',
-                                    letterSpacing: '-0.02em',
-                                }}
-                            >
-                                Ghi chú Trade
-                            </Typography>
-                        </Box>
-                        <IconButton
-                            onClick={() => setNoteDialogOpen(false)}
-                            sx={{
-                                color: '#9f9f9f',
-                                '&:hover': { bgcolor: '#2f2f2f', color: 'white' },
-                            }}
-                        >
-                            <LoseIcon />
-                        </IconButton>
-                    </Box>
-
-                    {/* Content Area */}
-                    <DialogContent
-                        sx={{
-                            bgcolor: '#191919',
-                            px: 4,
-                            py: 3,
-                            flex: 1,
-                            overflowY: 'auto',
-                        }}
-                    >
-                        <Box
-                            sx={{
-                                bgcolor: '#1e1e1e',
-                                borderRadius: 2,
-                                p: 2,
-                                minHeight: '45vh',
-                                border: '1px solid #2f2f2f',
-                            }}
-                        >
-                            <NotionEditor
-                                blocks={contentBlocks}
-                                onChange={setContentBlocks}
-                                placeholder="Type '/' for commands, or start typing..."
-                                sessionId={currentSession?.id}
-                                sessionName={currentSession ? `[Live] ${new Date(currentSession.startTime).toLocaleDateString('vi-VN')}_${new Date(currentSession.startTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }).replace(':', 'h')}` : undefined}
-                            />
-                        </Box>
-                    </DialogContent>
-
-                    {/* Footer Actions */}
-                    <DialogActions
-                        sx={{
-                            bgcolor: '#191919',
-                            borderTop: '1px solid #2f2f2f',
-                            px: 3,
-                            py: 2,
-                            gap: 1,
-                        }}
-                    >
-                        <Button
-                            onClick={() => setContentBlocks([])}
-                            sx={{
-                                color: '#ff6b6b',
-                                '&:hover': { bgcolor: 'rgba(255, 107, 107, 0.1)' },
-                            }}
-                        >
-                            Xóa ghi chú
-                        </Button>
-                        <Button
-                            onClick={() => setNoteDialogOpen(false)}
-                            variant="contained"
-                            sx={{
-                                bgcolor: '#3b82f6',
-                                '&:hover': { bgcolor: '#2563eb' },
-                                px: 3,
-                            }}
-                        >
-                            Lưu & Đóng
-                        </Button>
-                    </DialogActions>
-                </Dialog>
-
-                {/* Checklist Warning */}
-                {selectedModel && selectedModel.factors.length > 0 && !allFactorsChecked && (
-                    <Alert severity="warning" sx={{ py: 0.5 }}>
-                        Vui lòng check hết factors trước khi trade
-                    </Alert>
-                )}
-
-                {/* Win/Lose Buttons */}
-                <Stack direction="row" spacing={1.5}>
+                {/* Submit Buttons */}
+                <Stack direction="row" spacing={1.5} sx={{ pt: 1 }}>
                     <Button
-                        variant="contained"
-                        color="success"
-                        fullWidth
-                        size="large"
+                        variant="contained" color="success" fullWidth size="large"
                         startIcon={<WinIcon />}
                         onClick={() => handleAddTrade('win')}
-                        disabled={!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked}
-                        className={(!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked) ? '' : 'btn-win-active'}
+                        disabled={!selectedModel || !allFactorsChecked}
                         sx={{
-                            py: 1.5, fontWeight: 800, fontSize: '0.95rem',
-                            borderRadius: 2.5, letterSpacing: '0.05em',
-                            background: (!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked)
-                                ? undefined
-                                : 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
-                            '&:not(:disabled):hover': {
-                                background: 'linear-gradient(135deg, #047857 0%, #059669 100%)',
-                                transform: 'translateY(-2px)',
-                            },
+                            py: 1.5, fontWeight: 800, fontSize: '0.95rem', borderRadius: 2.5,
+                            background: (!selectedModel || !allFactorsChecked) ? undefined : 'linear-gradient(135deg, #059669 0%, #10b981 100%)',
                         }}
                     >
                         WIN
                     </Button>
                     <Button
-                        variant="contained"
-                        color="error"
-                        fullWidth
-                        size="large"
+                        variant="contained" color="error" fullWidth size="large"
                         startIcon={<LoseIcon />}
                         onClick={() => handleAddTrade('lose')}
-                        disabled={!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked}
-                        className={(!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked) ? '' : 'btn-lose-active'}
+                        disabled={!selectedModel || !allFactorsChecked}
                         sx={{
-                            py: 1.5, fontWeight: 800, fontSize: '0.95rem',
-                            borderRadius: 2.5, letterSpacing: '0.05em',
-                            background: (!selectedModel || !value || parseFloat(value) <= 0 || !allFactorsChecked)
-                                ? undefined
-                                : 'linear-gradient(135deg, #be123c 0%, #f43f5e 100%)',
-                            '&:not(:disabled):hover': {
-                                background: 'linear-gradient(135deg, #9f1239 0%, #be123c 100%)',
-                                transform: 'translateY(-2px)',
-                            },
+                            py: 1.5, fontWeight: 800, fontSize: '0.95rem', borderRadius: 2.5,
+                            background: (!selectedModel || !allFactorsChecked) ? undefined : 'linear-gradient(135deg, #be123c 0%, #f43f5e 100%)',
                         }}
                     >
                         LOSE
                     </Button>
                 </Stack>
-
-                {/* Session status */}
-                {isSessionActive && (
-                    <Chip
-                        label={`Session active: ${currentSession?.trades.length || 0} trades`}
-                        color="success"
-                        variant="outlined"
-                        size="small"
-                    />
-                )}
             </Stack>
+
+            {/* Note Dialog */}
+            <Dialog open={noteDialogOpen} onClose={() => setNoteDialogOpen(false)} maxWidth="md" fullWidth PaperProps={{ sx: { bgcolor: '#191919', color: 'white', minHeight: '70vh', borderRadius: 2 } }}>
+                <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', px: 3, py: 2, borderBottom: '1px solid #2f2f2f' }}>
+                    <Typography variant="h5" sx={{ fontWeight: 700 }}>Ghi chú Trade</Typography>
+                    <IconButton onClick={() => setNoteDialogOpen(false)} sx={{ color: '#9f9f9f' }}><LoseIcon /></IconButton>
+                </Box>
+                <DialogContent sx={{ bgcolor: '#191919', px: 4, py: 3 }}>
+                    <Box sx={{ bgcolor: '#1e1e1e', borderRadius: 2, p: 2, minHeight: '45vh', border: '1px solid #2f2f2f' }}>
+                        <NotionEditor blocks={contentBlocks} onChange={setContentBlocks} sessionId={currentSession?.id} />
+                    </Box>
+                </DialogContent>
+                <DialogActions sx={{ bgcolor: '#191919', borderTop: '1px solid #2f2f2f', px: 3, py: 2 }}>
+                    <Button onClick={() => setContentBlocks([])} sx={{ color: '#ff6b6b' }}>Xóa</Button>
+                    <Button onClick={() => setNoteDialogOpen(false)} variant="contained" sx={{ bgcolor: '#3b82f6' }}>Xong</Button>
+                </DialogActions>
+            </Dialog>
         </Box>
     );
 }

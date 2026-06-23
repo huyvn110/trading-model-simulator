@@ -16,6 +16,8 @@ import {
     TableRow,
     ThemeProvider,
     createTheme,
+    ToggleButton,
+    ToggleButtonGroup,
 } from '@mui/material';
 import { LiveSession } from '@/types';
 
@@ -49,9 +51,9 @@ interface SessionStatsViewProps {
 }
 
 function SessionStatsViewComponent({ session }: SessionStatsViewProps) {
-    const measurementMode = session.measurementMode || 'RR';
+    const [viewMode, setViewMode] = React.useState<'RR' | '$'>('RR');
 
-    // Calculate stats from session trades
+    // Calculate stats from session trades based on viewMode
     const stats = useMemo(() => {
         const modelStats = session.trades.reduce((acc, trade) => {
             const key = trade.modelId;
@@ -69,10 +71,10 @@ function SessionStatsViewComponent({ session }: SessionStatsViewProps) {
             acc[key].totalTrades++;
             if (trade.result === 'win') {
                 acc[key].wins++;
-                acc[key].totalProfit += trade.measurementValue;
+                acc[key].totalProfit += (viewMode === '$' ? (trade.pnl || trade.measurementValue || 0) : (trade.rr || trade.measurementValue || 0));
             } else {
                 acc[key].losses++;
-                acc[key].totalLoss += trade.measurementValue;
+                acc[key].totalLoss += (viewMode === '$' ? (trade.pnl || trade.measurementValue || 0) : (trade.rr || trade.measurementValue || 0));
             }
             return acc;
         }, {} as Record<string, any>);
@@ -81,7 +83,7 @@ function SessionStatsViewComponent({ session }: SessionStatsViewProps) {
             ...stat,
             winRate: stat.totalTrades > 0 ? (stat.wins / stat.totalTrades) * 100 : 0,
         }));
-    }, [session.trades]);
+    }, [session.trades, viewMode]);
 
     const sortedStats = useMemo(() => [...stats].sort((a, b) => b.winRate - a.winRate), [stats]);
 
@@ -97,10 +99,10 @@ function SessionStatsViewComponent({ session }: SessionStatsViewProps) {
     const bestPL = bestModel.totalProfit - bestModel.totalLoss;
 
     const formatValue = (value: number) => {
-        switch (measurementMode) {
-            case 'RR': return `${value.toFixed(2)}`;
-            case '$': return `$${value.toFixed(0)}`;
-            case '%': return `${value.toFixed(1)}%`;
+        if (viewMode === '$') {
+            return `$${value.toFixed(0)}`;
+        } else {
+            return `${value.toFixed(2)}R`;
         }
     };
 
@@ -159,7 +161,7 @@ function SessionStatsViewComponent({ session }: SessionStatsViewProps) {
                             <Typography variant="h5" sx={{ fontWeight: 700, color: '#10b981' }}>{bestModel.winRate.toFixed(1)}%</Typography>
                         </Box>
                         <Box sx={{ flex: 1, p: 2, borderRadius: 2, bgcolor: 'rgba(59, 130, 246, 0.1)', border: '1px solid rgba(59, 130, 246, 0.2)', textAlign: 'center' }}>
-                            <Typography variant="caption" sx={{ color: '#94a3b8' }}>{measurementMode}</Typography>
+                            <Typography variant="caption" sx={{ color: '#94a3b8' }}>{viewMode === '$' ? 'LỢI NHUẬN' : 'R:R'}</Typography>
                             <Typography variant="h5" sx={{ fontWeight: 700, color: bestPL >= 0 ? '#4ade80' : '#f87171' }}>
                                 {bestPL >= 0 ? '+' : ''}{formatValue(bestPL)}
                             </Typography>
@@ -196,11 +198,25 @@ function SessionStatsViewComponent({ session }: SessionStatsViewProps) {
                         <Stack spacing={4}>
                             {/* Hiệu Quả Giao Dịch */}
                             <Box>
-                                <Stack direction="row" alignItems="center" spacing={1.5} sx={{ mb: 2 }}>
-                                    <Box sx={{ width: 28, height: 28, borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(74, 222, 128, 0.1)' }}>
-                                        <Typography sx={{ fontSize: 14 }}>💰</Typography>
+                                <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 2 }}>
+                                    <Stack direction="row" alignItems="center" spacing={1.5}>
+                                        <Box sx={{ width: 28, height: 28, borderRadius: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', bgcolor: 'rgba(74, 222, 128, 0.1)' }}>
+                                            <Typography sx={{ fontSize: 14 }}>💰</Typography>
+                                        </Box>
+                                        <Typography sx={sectionTitleStyle}>Hiệu Quả Giao Dịch</Typography>
+                                    </Stack>
+                                    <Box>
+                                        <ToggleButtonGroup
+                                            value={viewMode}
+                                            exclusive
+                                            onChange={(_, val) => val && setViewMode(val)}
+                                            size="small"
+                                            sx={{ '& .MuiToggleButton-root': { py: 0.5, px: 2, fontSize: '0.75rem', borderColor: 'rgba(255,255,255,0.1)' } }}
+                                        >
+                                            <ToggleButton value="RR">RR</ToggleButton>
+                                            <ToggleButton value="$">PnL ($)</ToggleButton>
+                                        </ToggleButtonGroup>
                                     </Box>
-                                    <Typography sx={sectionTitleStyle}>Hiệu Quả Giao Dịch</Typography>
                                 </Stack>
                                 <Stack spacing={1}>
                                     {(() => {

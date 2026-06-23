@@ -16,6 +16,8 @@ interface Trade {
     tradeDate?: string;
     result: 'win' | 'lose';
     measurementValue: number;
+    pnl?: number;
+    rr?: number;
 }
 
 interface TopMetricsProps {
@@ -172,7 +174,13 @@ export function TopMetrics({ trades, initialBalance, measurementMode }: TopMetri
 
         const wins   = trades.filter(t => t.result === 'win');
         const losses = trades.filter(t => t.result === 'lose');
-        const winRate = (wins.length / trades.length) * 100;
+        const winRate = trades.length > 0 ? (wins.length / trades.length) * 100 : 0;
+
+        const getValue = (t: Trade) => {
+            if (measurementMode === '$') return t.pnl !== undefined ? t.pnl : t.measurementValue;
+            if (measurementMode === 'RR') return t.rr !== undefined ? t.rr : t.measurementValue;
+            return t.measurementValue;
+        };
 
         // P&L
         let pnl = 0;
@@ -181,20 +189,20 @@ export function TopMetrics({ trades, initialBalance, measurementMode }: TopMetri
             let bal = initialBalance;
             trades.forEach(t => {
                 bal *= t.result === 'win'
-                    ? (1 + t.measurementValue / 100)
-                    : (1 - t.measurementValue / 100);
+                    ? (1 + getValue(t) / 100)
+                    : (1 - getValue(t) / 100);
             });
             currentBalance = bal;
             pnl = currentBalance - initialBalance;
         } else {
-            trades.forEach(t => { pnl += t.result === 'win' ? t.measurementValue : -t.measurementValue; });
+            trades.forEach(t => { pnl += t.result === 'win' ? getValue(t) : -getValue(t); });
             if (measurementMode === '$') currentBalance = initialBalance + pnl;
             else currentBalance = initialBalance + pnl;
         }
 
         // Win/Loss ratio
-        const avgWin  = wins.length > 0 ? wins.reduce((s, t) => s + t.measurementValue, 0) / wins.length : 0;
-        const avgLoss = losses.length > 0 ? losses.reduce((s, t) => s + t.measurementValue, 0) / losses.length : 1;
+        const avgWin  = wins.length > 0 ? wins.reduce((s, t) => s + getValue(t), 0) / wins.length : 0;
+        const avgLoss = losses.length > 0 ? losses.reduce((s, t) => s + getValue(t), 0) / losses.length : 1;
         const winLossRatio = avgLoss > 0 ? avgWin / avgLoss : avgWin;
 
         // Today
@@ -235,9 +243,9 @@ export function TopMetrics({ trades, initialBalance, measurementMode }: TopMetri
         let bal = initialBalance;
         trades.slice(-10).forEach(t => {
             if (measurementMode === '$' || measurementMode === 'RR') {
-                bal += t.result === 'win' ? t.measurementValue : -t.measurementValue;
+                bal += t.result === 'win' ? getValue(t) : -getValue(t);
             } else {
-                bal *= t.result === 'win' ? (1 + t.measurementValue / 100) : (1 - t.measurementValue / 100);
+                bal *= t.result === 'win' ? (1 + getValue(t) / 100) : (1 - getValue(t) / 100);
             }
             balanceSpark.push(bal);
         });

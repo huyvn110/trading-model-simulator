@@ -57,16 +57,62 @@ export interface TradingModel {
 // Measurement mode for trades
 export type MeasurementMode = 'RR' | '$' | '%';
 
+// Test trade entry
+export interface TestTrade {
+    id: string;
+    modelKey: string; // "factorId1+factorId2"
+    factorIds: string[];
+    timestamp: number;
+    tradeDate: string;  // Format: YYYY-MM-DD
+    tradeTime?: string; // New: HH:mm
+    market?: string;    // New: mgc, mNQ...
+    session?: string;   // New: Asia, London, NY
+    bias?: 'long' | 'short'; // New
+    
+    // Measurement (Legacy & New)
+    measurementValue?: number; // Legacy
+    pnl?: number;              // New
+    rr?: number;               // New
+    rrValue?: number;          // New
+
+    result: 'win' | 'lose';
+    
+    // Trading Psychology & Plan (New)
+    followPlan?: 'yes' | 'no';
+    emotion?: string;
+    mistake?: string;
+
+    notes?: string;
+    images?: string[];
+    content?: ContentBlock[];
+}
+
 // Live trade entry
 export interface LiveTrade {
     id: string;
     timestamp: number;
     tradeDate: string;  // Format: YYYY-MM-DD
+    tradeTime?: string; // New: HH:mm
+    market?: string;    // New: mgc, mNQ...
+    session?: string;   // New: Asia, London, NY
+    bias?: 'long' | 'short'; // New
     modelId: string;
     modelName: string;
-    measurementValue: number;
-    profitRatio?: number;  // For win trades: multiplier (RR) or percentage ($%)
+    
+    // Measurement (Legacy & New)
+    measurementValue?: number; // Legacy
+    profitRatio?: number;      // Legacy
+    pnl?: number;              // New
+    rr?: number;               // New
+    rrValue?: number;          // New
+
     result: 'win' | 'lose';
+    
+    // Trading Psychology & Plan (New)
+    followPlan?: 'yes' | 'no';
+    emotion?: string;
+    mistake?: string;
+
     notes?: string;  // Legacy - keep for backward compatibility
     images?: string[];  // Legacy - keep for backward compatibility
     content?: ContentBlock[];  // New: Notion-like content blocks

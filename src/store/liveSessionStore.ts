@@ -23,17 +23,7 @@ interface LiveSessionState {
     endSession: () => void;
 
     // Trade management
-    addTrade: (
-        modelId: string,
-        modelName: string,
-        value: number,
-        profitRatio: number | undefined,
-        result: 'win' | 'lose',
-        tradeDate?: string,
-        notes?: string,
-        images?: string[],
-        content?: ContentBlock[]
-    ) => void;
+    addTrade: (tradeData: Omit<LiveTrade, 'id' | 'timestamp'>) => void;
     updateTradeNotes: (tradeId: string, notes: string) => void;
     updateTradeContent: (tradeId: string, content: ContentBlock[]) => void;
     addTradeImage: (tradeId: string, image: string) => void;
@@ -127,44 +117,28 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                 }
             },
 
-            addTrade: (
-                modelId: string,
-                modelName: string,
-                value: number,
-                profitRatio: number | undefined,
-                result: 'win' | 'lose',
-                tradeDate?: string,
-                notes?: string,
-                images?: string[],
-                content?: ContentBlock[]
-            ) => {
+            addTrade: (tradeData: Omit<LiveTrade, 'id' | 'timestamp'>) => {
                 const { currentSession, measurementMode } = get();
 
-                // Calculate final value for win trades with profit ratio
-                let finalValue = value;
-                if (result === 'win' && profitRatio && profitRatio > 0) {
+                // Calculate final legacy measurementValue if needed
+                let finalValue = tradeData.measurementValue || 0;
+                if (tradeData.result === 'win' && tradeData.profitRatio && tradeData.profitRatio > 0) {
                     if (measurementMode === 'RR') {
-                        finalValue = value * profitRatio;
+                        finalValue = finalValue * tradeData.profitRatio;
                     } else {
-                        finalValue = value * (1 + profitRatio / 100);
+                        finalValue = finalValue * (1 + tradeData.profitRatio / 100);
                     }
                 }
 
                 // Default to current date if not provided
-                const dateStr = tradeDate || new Date().toISOString().split('T')[0];
+                const dateStr = tradeData.tradeDate || new Date().toISOString().split('T')[0];
 
                 const trade: LiveTrade = {
+                    ...tradeData,
                     id: uuidv4(),
                     timestamp: Date.now(),
                     tradeDate: dateStr,
-                    modelId,
-                    modelName,
-                    measurementValue: finalValue,
-                    profitRatio,
-                    result,
-                    notes,
-                    images,
-                    content,
+                    measurementValue: finalValue, // Still computing legacy for fallback if needed
                 };
 
                 set((state) => {

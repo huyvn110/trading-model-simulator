@@ -61,15 +61,7 @@ interface TestSessionState {
     deleteSession: (id: string) => void;
 
     // Trade management
-    addTrade: (
-        factors: Factor[],
-        value: number,
-        result: 'win' | 'lose',
-        tradeDate?: string,
-        notes?: string,
-        images?: string[],
-        content?: ContentBlock[]
-    ) => void;
+    addTrade: (tradeData: Omit<TestTrade, 'id' | 'timestamp' | 'modelKey'> & { factors: Factor[] }) => void;
     updateTradeNotes: (tradeId: string, notes: string) => void;
     updateTradeContent: (tradeId: string, content: ContentBlock[]) => void;
     addTradeImage: (tradeId: string, image: string) => void;
@@ -253,36 +245,25 @@ export const useTestSessionStore = create<TestSessionState>()(
                 });
             },
 
-            addTrade: (
-                factors: Factor[],
-                value: number,
-                result: 'win' | 'lose',
-                tradeDate?: string,
-                notes?: string,
-                images?: string[],
-                content?: ContentBlock[]
-            ) => {
+            addTrade: (tradeData: Omit<TestTrade, 'id' | 'timestamp' | 'modelKey'> & { factors: Factor[] }) => {
                 const { currentSession } = get();
                 if (!currentSession) return;
 
-                const sortedFactorIds = factors
+                const sortedFactorIds = tradeData.factors
                     .map((f) => f.id)
                     .sort();
 
                 // Default to current date if not provided
-                const dateStr = tradeDate || new Date().toISOString().split('T')[0];
+                const dateStr = tradeData.tradeDate || new Date().toISOString().split('T')[0];
 
                 const trade: TestTrade = {
+                    ...tradeData,
                     id: uuidv4(),
                     timestamp: Date.now(),
                     tradeDate: dateStr,
                     factorIds: sortedFactorIds,
                     modelKey: sortedFactorIds.join('+'), // Use IDs for stable key
-                    measurementValue: value,
-                    result,
-                    notes,
-                    images,
-                    content,
+                    measurementValue: tradeData.measurementValue || 0, // Fallback for legacy
                 };
 
                 set((state) => {

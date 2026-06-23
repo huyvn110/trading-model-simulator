@@ -16,6 +16,8 @@ import {
     TableRow,
     ThemeProvider,
     createTheme,
+    ToggleButton,
+    ToggleButtonGroup,
 } from '@mui/material';
 import { useLiveSessionStore } from '@/store/liveSessionStore';
 import { LiveBestModel } from './LiveBestModel';
@@ -43,12 +45,64 @@ const sectionTitleStyle = {
 function LiveChartsComponent() {
     const { getCurrentSessionStats, currentSession } = useLiveSessionStore();
     const stats = getCurrentSessionStats();
-    const measurementMode = currentSession?.measurementMode || 'RR';
+    
+    // Default to the session's measurement mode or RR if none
+    const [viewMode, setViewMode] = React.useState<'RR' | '$'>(() => {
+        if (currentSession?.measurementMode === '$') return '$';
+        return 'RR';
+    });
+
     const trades = currentSession?.trades || [];
     const initialBalance = currentSession?.initialBalance || 0;
 
+    const transformedTrades = useMemo(() => trades.map(t => ({
+        timestamp: t.timestamp,
+        tradeDate: t.tradeDate,
+        result: t.result,
+        measurementValue: t.measurementValue ?? 0,
+        pnl: t.pnl,
+        rr: t.rr,
+    })), [trades]);
+
+    // Calculate dynamic stats for the lower half ranking
+    const dynamicStats = useMemo(() => {
+        const modelStats = trades.reduce((acc, trade) => {
+            const key = trade.modelId;
+            if (!acc[key]) {
+                acc[key] = {
+                    modelId: trade.modelId,
+                    modelName: trade.modelName,
+                    totalTrades: 0,
+                    wins: 0,
+                    losses: 0,
+                    totalProfit: 0,
+                    totalLoss: 0,
+                };
+            }
+            acc[key].totalTrades++;
+            
+            const tradeValue = viewMode === '$' 
+                ? (trade.pnl !== undefined ? trade.pnl : trade.measurementValue)
+                : (trade.rr !== undefined ? trade.rr : trade.measurementValue);
+
+            if (trade.result === 'win') {
+                acc[key].wins++;
+                acc[key].totalProfit += tradeValue;
+            } else {
+                acc[key].losses++;
+                acc[key].totalLoss += tradeValue;
+            }
+            return acc;
+        }, {} as Record<string, any>);
+
+        return Object.values(modelStats).map((stat: any) => ({
+            ...stat,
+            winRate: stat.totalTrades > 0 ? (stat.wins / stat.totalTrades) * 100 : 0,
+        }));
+    }, [trades, viewMode]);
+
     // Sort by win rate
-    const sortedStats = useMemo(() => [...stats].sort((a, b) => b.winRate - a.winRate), [stats]);
+    const sortedStats = useMemo(() => [...dynamicStats].sort((a, b) => b.winRate - a.winRate), [dynamicStats]);
 
     if (stats.length === 0) {
         return (
@@ -63,19 +117,36 @@ function LiveChartsComponent() {
 
     return (
         <Stack spacing={3}>
+            {/* Mode Toggle Container */}
+            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: -2 }}>
+                <ToggleButtonGroup
+                    value={viewMode}
+                    exclusive
+                    onChange={(_, val) => val && setViewMode(val)}
+                    size="small"
+                    sx={{
+                        bgcolor: 'background.paper',
+                        '& .MuiToggleButton-root': { py: 0.5, px: 2, fontSize: '0.8rem', fontWeight: 600 }
+                    }}
+                >
+                    <ToggleButton value="RR">RR</ToggleButton>
+                    <ToggleButton value="$">PnL ($)</ToggleButton>
+                </ToggleButtonGroup>
+            </Box>
+
             {/* Dashboard: Top Metrics */}
             <ThemeProvider theme={darkTheme}>
-                <TopMetrics trades={trades} initialBalance={initialBalance} measurementMode={measurementMode} />
+                <TopMetrics trades={transformedTrades} initialBalance={initialBalance} measurementMode={viewMode} />
             </ThemeProvider>
 
             {/* Dashboard: Equity Chart and Calendar */}
             <ThemeProvider theme={darkTheme}>
                 <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
                     <Box sx={{ flex: 1 }}>
-                        <EquityChart trades={trades} initialBalance={initialBalance} measurementMode={measurementMode} />
+                        <EquityChart trades={transformedTrades} initialBalance={initialBalance} measurementMode={viewMode} />
                     </Box>
                     <Box sx={{ flex: 1 }}>
-                        <TradingCalendar trades={trades} measurementMode={measurementMode} />
+                        <TradingCalendar trades={transformedTrades} measurementMode={viewMode} />
                     </Box>
                 </Stack>
             </ThemeProvider>

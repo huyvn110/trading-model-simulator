@@ -13,6 +13,8 @@ interface Trade {
     tradeDate?: string;
     result: 'win' | 'lose';
     measurementValue: number;
+    pnl?: number;
+    rr?: number;
 }
 
 interface TradingCalendarProps {
@@ -42,16 +44,22 @@ export function TradingCalendar({ trades, measurementMode }: TradingCalendarProp
     const [year, setYear]   = React.useState(today.getFullYear());
 
     const calendarData = useMemo(() => {
+        const getValue = (t: Trade) => {
+            if (measurementMode === '$') return t.pnl !== undefined ? t.pnl : t.measurementValue;
+            if (measurementMode === 'RR') return t.rr !== undefined ? t.rr : t.measurementValue;
+            return t.measurementValue;
+        };
+
         const map: Record<string, DayData> = {};
         trades.forEach(t => {
             const ds = t.tradeDate || new Date(t.timestamp).toISOString().split('T')[0];
             if (!map[ds]) map[ds] = { date: ds, trades: 0, wins: 0, losses: 0, pnl: 0 };
             map[ds].trades++;
-            if (t.result === 'win') { map[ds].wins++; map[ds].pnl += t.measurementValue; }
-            else { map[ds].losses++; map[ds].pnl -= t.measurementValue; }
+            if (t.result === 'win') { map[ds].wins++; map[ds].pnl += getValue(t); }
+            else { map[ds].losses++; map[ds].pnl -= getValue(t); }
         });
         return map;
-    }, [trades]);
+    }, [trades, measurementMode]);
 
     // Monthly summary for current month
     const monthlySummary = useMemo(() => {
