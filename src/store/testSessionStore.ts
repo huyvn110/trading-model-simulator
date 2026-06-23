@@ -11,10 +11,26 @@ export interface TestTrade {
     id: string;
     timestamp: number;
     tradeDate: string;  // Format: YYYY-MM-DD
+    tradeTime?: string; // New: HH:mm
+    market?: string;    // New: mgc, mNQ...
+    session?: string;   // New: Asia, London, NY
+    bias?: 'long' | 'short'; // New
     factorIds: string[];
     modelKey: string; // sorted factor IDs joined (stable even when names change)
-    measurementValue: number;
+    
+    // Measurement (Legacy & New)
+    measurementValue: number; // Legacy
+    pnl?: number;              // New
+    rr?: number;               // New
+    rrValue?: number;          // New
+
     result: 'win' | 'lose';
+
+    // Trading Psychology & Plan (New)
+    followPlan?: 'yes' | 'no';
+    emotion?: string;
+    mistake?: string;
+
     notes?: string;  // Legacy - keep for backward compatibility
     images?: string[];  // Legacy - keep for backward compatibility
     content?: ContentBlock[];  // New: Notion-like content blocks
@@ -61,7 +77,7 @@ interface TestSessionState {
     deleteSession: (id: string) => void;
 
     // Trade management
-    addTrade: (tradeData: Omit<TestTrade, 'id' | 'timestamp' | 'modelKey'> & { factors: Factor[] }) => void;
+    addTrade: (tradeData: Omit<TestTrade, 'id' | 'timestamp' | 'modelKey' | 'factorIds'> & { factors: Factor[] }) => void;
     updateTradeNotes: (tradeId: string, notes: string) => void;
     updateTradeContent: (tradeId: string, content: ContentBlock[]) => void;
     addTradeImage: (tradeId: string, image: string) => void;
@@ -245,7 +261,7 @@ export const useTestSessionStore = create<TestSessionState>()(
                 });
             },
 
-            addTrade: (tradeData: Omit<TestTrade, 'id' | 'timestamp' | 'modelKey'> & { factors: Factor[] }) => {
+            addTrade: (tradeData: Omit<TestTrade, 'id' | 'timestamp' | 'modelKey' | 'factorIds'> & { factors: Factor[] }) => {
                 const { currentSession } = get();
                 if (!currentSession) return;
 
