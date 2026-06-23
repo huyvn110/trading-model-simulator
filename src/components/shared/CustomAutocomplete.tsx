@@ -21,7 +21,7 @@ const filter = createFilterOptions<OptionType>();
 
 export function CustomAutocomplete({ options, value, onChange, onAdd, onRemove, label }: CustomAutocompleteProps) {
     const objectOptions: OptionType[] = options.map((opt) => ({ title: opt }));
-    const valueObj = value ? { title: value } : null;
+    const valueObj: OptionType | null = value ? { title: value } : null;
 
     return (
         <Autocomplete
