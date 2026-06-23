@@ -62,10 +62,10 @@ const calculateModelStats = (trades: LiveTrade[]): LiveModelStats[] => {
 
         if (trade.result === 'win') {
             stats.wins++;
-            stats.totalProfit += trade.measurementValue;
+            stats.totalProfit += trade.measurementValue ?? 0;
         } else {
             stats.losses++;
-            stats.totalLoss += trade.measurementValue;
+            stats.totalLoss += trade.measurementValue ?? 0;
         }
 
         stats.winRate = stats.totalTrades > 0
