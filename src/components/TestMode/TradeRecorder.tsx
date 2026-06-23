@@ -44,13 +44,13 @@ const SESSIONS = ['Asia', 'London', 'NY'];
 const MISTAKES = ['None', 'FOMO', 'Moved SL', 'Không đợi cisd', 'Vào sớm', 'Sai cấu trúc', 'Lỗi tâm lý'];
 
 export function TradeRecorder() {
-    const { currentSession, sessionHistory, addTrade } = useTestSessionStore();
+    const { currentSession, sessions, addTrade } = useTestSessionStore();
     const { factors } = useFactorStore();
     const { enqueue } = useUploadQueueStore();
     const selectedFactors = factors.filter(f => f.selected);
 
     // Extract dynamic options from history
-    const allTrades = [...(currentSession?.trades || []), ...sessionHistory.flatMap(s => s.trades)];
+    const allTrades = [...(currentSession?.trades || []), ...sessions.flatMap(s => s.trades)];
     const uniqueMarkets = Array.from(new Set([...COMMON_MARKETS, ...allTrades.map(t => t.market).filter(Boolean) as string[]]));
     const uniqueSessions = Array.from(new Set([...SESSIONS, ...allTrades.map(t => t.session).filter(Boolean) as string[]]));
     const uniqueMistakes = Array.from(new Set([...MISTAKES, ...allTrades.map(t => t.mistake).filter(Boolean) as string[]]));
