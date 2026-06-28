@@ -32,7 +32,8 @@ import {
     Delete as DeleteIcon,
     Edit as EditIcon,
     FileDownload as ExportIcon,
-    FolderOpen as ManageIcon,
+    InsertDriveFileOutlined as SessionFileIcon,
+    MoreHoriz as MoreIcon,
     Stop as StopIcon,
     TableChart as ExcelIcon,
 } from '@mui/icons-material';
@@ -63,7 +64,6 @@ export function SessionPanel({
     onCreateOpenChange: (open: boolean) => void;
 }) {
     const theme = useTheme();
-    const isDark = theme.palette.mode === 'dark';
     const {
         currentSession,
         sessions,
@@ -190,81 +190,82 @@ export function SessionPanel({
         setSessionToDelete(null);
     };
 
-    const cardBorder = isDark ? 'rgba(148,163,184,0.18)' : 'rgba(15,23,42,0.12)';
-
     return (
-        <Box sx={{ p: 1.75 }}>
-            <Box
-                sx={{
-                    p: 1.75,
-                    borderRadius: 2,
-                    border: '1px solid',
-                    borderColor: currentSession ? alpha(theme.palette.primary.main, 0.65) : cardBorder,
-                    bgcolor: currentSession ? alpha(theme.palette.primary.main, isDark ? 0.08 : 0.05) : alpha(theme.palette.text.primary, 0.025),
-                }}
-            >
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-                    <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
-                            Current Session
-                        </Typography>
-                        <Typography sx={{ mt: 0.35, fontWeight: 800, color: currentSession ? 'primary.main' : 'text.primary' }} noWrap>
-                            {currentSession?.name || 'Chưa có phiên'}
-                        </Typography>
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                            <Chip
-                                size="small"
-                                label={currentSession ? formatMoney(currentSession.initialBalance) : 'No balance'}
-                                sx={{ height: 22, fontWeight: 700 }}
-                            />
-                            <Chip
-                                size="small"
-                                label={`${currentSession?.trades.length || 0} trades`}
-                                sx={{ height: 22, fontWeight: 700 }}
-                            />
-                        </Stack>
-                    </Box>
+        <Box sx={{ py: 0.35, pr: 0.25 }}>
+            {sessions.length === 0 ? (
+                <Stack direction="row" alignItems="center" spacing={0.9} sx={{ minHeight: 32, px: 0.8, color: 'text.secondary' }}>
+                    <SessionFileIcon sx={{ fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>Chưa có phiên</Typography>
+                </Stack>
+            ) : sessions.map((session) => {
+                const active = session.id === currentSession?.id;
+                const ended = !!session.endTime;
 
-                    <Stack direction="row" spacing={0.75}>
+                return (
+                    <Stack
+                        key={session.id}
+                        direction="row"
+                        alignItems="center"
+                        spacing={0.2}
+                        sx={{
+                            minHeight: 32,
+                            borderRadius: '7px',
+                            color: active ? 'text.primary' : 'text.secondary',
+                            bgcolor: active ? alpha(theme.palette.primary.main, 0.1) : 'transparent',
+                            opacity: ended ? 0.68 : 1,
+                            '&:hover': { bgcolor: alpha(theme.palette.text.primary, 0.055) },
+                        }}
+                    >
+                        <Box
+                            component="button"
+                            type="button"
+                            disabled={ended}
+                            onClick={() => selectSession(session.id)}
+                            sx={{
+                                minWidth: 0,
+                                minHeight: 32,
+                                flex: 1,
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 0.85,
+                                px: 0.8,
+                                border: 0,
+                                color: 'inherit',
+                                bgcolor: 'transparent',
+                                cursor: ended ? 'default' : 'pointer',
+                                textAlign: 'left',
+                            }}
+                        >
+                            <SessionFileIcon sx={{ fontSize: 16, color: active ? 'primary.main' : 'text.secondary', flexShrink: 0 }} />
+                            <Typography sx={{ minWidth: 0, flex: 1, fontSize: '0.8rem', fontWeight: active ? 800 : 650 }} noWrap>
+                                {session.name}
+                            </Typography>
+                            <Typography sx={{ minWidth: 18, textAlign: 'right', color: 'text.secondary', fontSize: '0.72rem', fontWeight: 700 }}>
+                                {session.trades.length}
+                            </Typography>
+                        </Box>
                         <Tooltip title="Quản lý phiên">
                             <IconButton
                                 size="small"
+                                aria-label={`Quản lý ${session.name}`}
                                 onClick={() => setManageOpen(true)}
-                                sx={{ border: '1px solid', borderColor: 'divider' }}
+                                sx={{ width: 24, height: 24, p: 0, mr: 0.35, color: 'text.secondary', borderRadius: '6px' }}
                             >
-                                <ManageIcon fontSize="small" />
+                                <MoreIcon sx={{ fontSize: 16 }} />
                             </IconButton>
                         </Tooltip>
-                        {currentSession && (
-                            <Tooltip title="Kết thúc phiên">
-                                <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={endSession}
-                                    sx={{ border: '1px solid', borderColor: alpha(theme.palette.error.main, 0.35) }}
-                                >
-                                    <StopIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                        )}
                     </Stack>
-                </Stack>
-
-                {currentSession && (
-                    <Typography sx={{ mt: 1.1, fontSize: '0.75rem', color: 'text.secondary' }}>
-                        Started {formatDate(currentSession.startTime)}
-                    </Typography>
-                )}
-            </Box>
+                );
+            })}
 
             <Dialog open={createOpen} onClose={() => onCreateOpenChange(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Tạo mục mới</DialogTitle>
+                <DialogTitle>Tạo phiên mới</DialogTitle>
                 <DialogContent>
                     <Stack spacing={1.5} sx={{ pt: 0.75 }}>
                         <TextField
                             autoFocus
                             size="small"
-                            label="Tên mục mới"
+                            label="Tên phiên"
                             placeholder={`Phiên Test ${sessions.length + 1}`}
                             value={sessionName}
                             onChange={(event) => setSessionName(event.target.value)}
@@ -305,11 +306,11 @@ export function SessionPanel({
                                 bgcolor: alpha(theme.palette.text.primary, 0.025),
                             }}
                         >
-                            <Typography sx={{ mb: 1.5, fontWeight: 800 }}>Tạo mục mới</Typography>
+                            <Typography sx={{ mb: 1.5, fontWeight: 800 }}>Tạo phiên mới</Typography>
                             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
                                 <TextField
                                     size="small"
-                                    label="Tên mục mới"
+                                    label="Tên phiên"
                                     placeholder={`Phiên Test ${sessions.length + 1}`}
                                     value={sessionName}
                                     onChange={(event) => setSessionName(event.target.value)}
@@ -334,7 +335,7 @@ export function SessionPanel({
                                 onClick={handleCreateSession}
                                 fullWidth
                             >
-                                Tạo mục
+                                Tạo phiên
                             </Button>
                         </Box>
 
@@ -422,6 +423,19 @@ export function SessionPanel({
                     </Stack>
                 </DialogContent>
                 <DialogActions>
+                    {currentSession && (
+                        <Button
+                            color="error"
+                            startIcon={<StopIcon />}
+                            onClick={() => {
+                                endSession();
+                                setManageOpen(false);
+                            }}
+                        >
+                            Kết thúc phiên
+                        </Button>
+                    )}
+                    <Box sx={{ flex: 1 }} />
                     <Button onClick={() => setManageOpen(false)}>Đóng</Button>
                 </DialogActions>
             </Dialog>

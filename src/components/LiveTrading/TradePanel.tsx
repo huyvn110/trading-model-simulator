@@ -171,7 +171,7 @@ export function TradePanel({ onAddModel, onEditModel }: TradePanelProps) {
             <Stack spacing={1.5}>
                 {!isSessionActive && (
                     <Alert severity="info" sx={{ borderRadius: 2 }}>
-                        Tạo mục thực chiến bằng nút + trong sidebar để bắt đầu ghi trade.
+                        Tạo phiên thực chiến bằng nút + trong sidebar để bắt đầu ghi trade.
                     </Alert>
                 )}
 

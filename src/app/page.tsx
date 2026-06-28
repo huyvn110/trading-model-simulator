@@ -13,10 +13,8 @@ import {
     Tab,
     Paper,
     Button,
-    Chip,
     CircularProgress,
     Collapse,
-    Divider,
     IconButton,
     Typography,
     Stack,
@@ -30,7 +28,7 @@ import {
     LocalFireDepartment as LiveIcon,
     ExpandMore as ExpandMoreIcon,
     ExpandLess as ExpandLessIcon,
-    FolderOutlined as FolderIcon,
+    InsertDriveFileOutlined as SessionFileIcon,
     KeyboardDoubleArrowLeft as HideSidebarIcon,
     KeyboardDoubleArrowRight as ShowSidebarIcon,
     Description as NotesIcon,
@@ -46,7 +44,6 @@ import { ModelDialog } from '@/components/LiveTrading/ModelList';
 import { TradingModel } from '@/types';
 import { ThemeContext } from '@/components/ThemeRegistry';
 import { useLiveSessionStore } from '@/store/liveSessionStore';
-import { useTestSessionStore } from '@/store/testSessionStore';
 
 // Lazy load heavy components
 const TestTrades   = lazy(() => import('@/components/TestMode/TestTrades'));
@@ -228,125 +225,6 @@ function SidebarToggleButton({
 }
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
-function SidebarTreeSection({
-    title,
-    icon,
-    open,
-    onToggle,
-    onAdd,
-    accentColor,
-    children,
-}: {
-    title: string;
-    icon?: React.ReactNode;
-    open: boolean;
-    onToggle: () => void;
-    onAdd?: () => void;
-    accentColor: string;
-    children: React.ReactNode;
-}) {
-    return (
-        <Box sx={{ mt: 0.35 }}>
-            <Box
-                sx={{
-                    width: '100%',
-                    minHeight: 32,
-                    display: 'flex',
-                    alignItems: 'center',
-                    borderRadius: '8px',
-                    color: 'text.primary',
-                    bgcolor: 'transparent',
-                    '&:hover': { bgcolor: 'rgba(255,255,255,0.06)' },
-                }}
-            >
-                <Box
-                    component="button"
-                    type="button"
-                    onClick={onToggle}
-                    sx={{
-                        minWidth: 0,
-                        minHeight: 32,
-                        flex: 1,
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: 0.85,
-                        pl: 1,
-                        pr: 0.35,
-                        py: 0.55,
-                        border: 0,
-                        color: 'inherit',
-                        bgcolor: 'transparent',
-                        cursor: 'pointer',
-                        textAlign: 'left',
-                    }}
-                >
-                    <Box
-                        sx={{
-                            width: 3,
-                            height: 18,
-                            borderRadius: '3px',
-                            bgcolor: accentColor,
-                            flexShrink: 0,
-                        }}
-                    />
-                    <Box sx={{ display: 'flex', color: 'text.secondary', flexShrink: 0 }}>
-                        {icon || <FolderIcon sx={{ fontSize: 16 }} />}
-                    </Box>
-                    <Typography sx={{ flex: 1, fontWeight: 800, fontSize: '0.82rem' }} noWrap>
-                        {title}
-                    </Typography>
-                </Box>
-                <Stack direction="row" alignItems="center" spacing={0.15} sx={{ pr: 0.35, flexShrink: 0 }}>
-                    {onAdd && (
-                        <Tooltip title="Tạo mục mới">
-                            <IconButton
-                                size="small"
-                                aria-label="Tạo mục mới"
-                                onClick={onAdd}
-                                sx={{
-                                    width: 24,
-                                    height: 24,
-                                    p: 0,
-                                    color: 'text.secondary',
-                                    borderRadius: '6px',
-                                }}
-                            >
-                                <AddIcon sx={{ fontSize: 17 }} />
-                            </IconButton>
-                        </Tooltip>
-                    )}
-                    <IconButton
-                        size="small"
-                        aria-label={open ? 'Thu gọn' : 'Mở rộng'}
-                        onClick={onToggle}
-                        sx={{
-                            width: 24,
-                            height: 24,
-                            p: 0,
-                            color: 'text.secondary',
-                            borderRadius: '6px',
-                        }}
-                    >
-                        {open ? <ExpandLessIcon sx={{ fontSize: 16 }} /> : <ExpandMoreIcon sx={{ fontSize: 16 }} />}
-                    </IconButton>
-                </Stack>
-            </Box>
-            <Collapse in={open}>
-                <Box
-                    sx={{
-                        ml: 1.35,
-                        pl: 1,
-                        borderLeft: '1px solid',
-                        borderColor: 'divider',
-                    }}
-                >
-                    {children}
-                </Box>
-            </Collapse>
-        </Box>
-    );
-}
-
 function LiveSessionMiniPanel({
     createOpen,
     onCreateOpenChange,
@@ -360,19 +238,6 @@ function LiveSessionMiniPanel({
 
     const defaultSessionName = `Phiên thực chiến ${sessionHistory.length + (currentSession ? 2 : 1)}`;
 
-    const formatDate = (timestamp: number) => new Date(timestamp).toLocaleString('vi-VN', {
-        day: '2-digit',
-        month: '2-digit',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-
-    const formatMoney = (value: number) => `$${value.toLocaleString('en-US', {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
-
     const handleCreateSession = () => {
         setMeasurementMode('$');
         startSession(parseFloat(initialBalance) || 0, sessionName.trim() || defaultSessionName);
@@ -382,60 +247,62 @@ function LiveSessionMiniPanel({
     };
 
     return (
-        <Box sx={{ py: 1, pr: 0.5 }}>
-            <Box
-                sx={{
-                    p: 1.75,
-                    borderRadius: '8px',
-                    border: '1px solid',
-                    borderColor: currentSession ? 'rgba(52, 211, 153, 0.65)' : 'divider',
-                    bgcolor: currentSession ? 'rgba(52, 211, 153, 0.08)' : 'rgba(255,255,255,0.025)',
-                }}
-            >
-                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
-                    <Box sx={{ minWidth: 0 }}>
-                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 800, textTransform: 'uppercase' }}>
-                            Current Session
-                        </Typography>
-                        <Typography sx={{ mt: 0.35, fontSize: '0.9rem', fontWeight: 800, color: currentSession ? '#34d399' : 'text.primary' }} noWrap>
-                            {currentSession?.name || (currentSession ? 'Đang chạy' : 'Chưa có phiên')}
-                        </Typography>
-                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
-                            <Chip size="small" label={currentSession ? formatMoney(currentSession.initialBalance) : 'No balance'} sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }} />
-                            <Chip size="small" label={`${currentSession?.trades.length || 0} trades`} sx={{ height: 22, fontSize: '0.68rem', fontWeight: 700 }} />
-                        </Stack>
-                    </Box>
-
-                    <Stack direction="row" spacing={0.75}>
-                        {currentSession && (
-                            <Tooltip title="Kết thúc phiên">
-                                <IconButton
-                                    size="small"
-                                    color="error"
-                                    onClick={endSession}
-                                    sx={{ border: '1px solid', borderColor: 'rgba(244, 63, 94, 0.35)' }}
-                                >
-                                    <StopIcon fontSize="small" />
-                                </IconButton>
-                            </Tooltip>
-                        )}
-                    </Stack>
+        <Box sx={{ py: 0.35, pr: 0.25 }}>
+            {[...(currentSession ? [currentSession] : []), ...sessionHistory].length === 0 ? (
+                <Stack direction="row" alignItems="center" spacing={0.9} sx={{ minHeight: 32, px: 0.8, color: 'text.secondary' }}>
+                    <SessionFileIcon sx={{ fontSize: 16 }} />
+                    <Typography sx={{ fontSize: '0.8rem', fontWeight: 650 }}>Chưa có phiên</Typography>
                 </Stack>
-                {currentSession && (
-                    <Typography sx={{ mt: 1.1, fontSize: '0.75rem', color: 'text.secondary' }}>
-                        Started {formatDate(currentSession.startTime)}
-                    </Typography>
-                )}
-            </Box>
+            ) : (
+                [...(currentSession ? [currentSession] : []), ...sessionHistory].map((session, index) => {
+                    const active = session.id === currentSession?.id;
+                    return (
+                        <Stack
+                            key={session.id}
+                            direction="row"
+                            alignItems="center"
+                            spacing={0.45}
+                            sx={{
+                                minHeight: 32,
+                                px: 0.7,
+                                borderRadius: '7px',
+                                color: active ? 'text.primary' : 'text.secondary',
+                                bgcolor: active ? 'rgba(52, 211, 153, 0.08)' : 'transparent',
+                                '&:hover': { bgcolor: 'rgba(255,255,255,0.05)' },
+                            }}
+                        >
+                            <SessionFileIcon sx={{ fontSize: 16, color: active ? '#34d399' : 'text.secondary' }} />
+                            <Typography sx={{ minWidth: 0, flex: 1, fontSize: '0.8rem', fontWeight: active ? 800 : 650 }} noWrap>
+                                {session.name || `Phiên thực chiến ${index + 1}`}
+                            </Typography>
+                            <Typography sx={{ minWidth: 18, textAlign: 'right', color: 'text.secondary', fontSize: '0.72rem', fontWeight: 700 }}>
+                                {session.trades.length}
+                            </Typography>
+                            {active && (
+                                <Tooltip title="Kết thúc phiên">
+                                    <IconButton
+                                        size="small"
+                                        aria-label="Kết thúc phiên"
+                                        onClick={endSession}
+                                        sx={{ width: 24, height: 24, p: 0, color: 'error.main', borderRadius: '6px' }}
+                                    >
+                                        <StopIcon sx={{ fontSize: 15 }} />
+                                    </IconButton>
+                                </Tooltip>
+                            )}
+                        </Stack>
+                    );
+                })
+            )}
 
             <Dialog open={createOpen} onClose={() => onCreateOpenChange(false)} maxWidth="xs" fullWidth>
-                <DialogTitle>Tạo mục mới</DialogTitle>
+                <DialogTitle>Tạo phiên mới</DialogTitle>
                 <DialogContent>
                     <Stack spacing={1.5} sx={{ pt: 0.75 }}>
                         <TextField
                             autoFocus
                             size="small"
-                            label="Tên mục mới"
+                            label="Tên phiên"
                             placeholder={defaultSessionName}
                             value={sessionName}
                             onChange={(event) => setSessionName(event.target.value)}
@@ -544,6 +411,7 @@ function AppSidebar({
     panelBg,
     panelBorder,
     modePanels,
+    modeSections,
 }: {
     appMode: AppMode;
     onModeChange: (mode: AppMode) => void;
@@ -551,7 +419,11 @@ function AppSidebar({
     panelBg: string;
     panelBorder: string;
     modePanels?: Partial<Record<AppMode, React.ReactNode>>;
-    children?: React.ReactNode;
+    modeSections?: Partial<Record<AppMode, {
+        open: boolean;
+        onToggle: () => void;
+        onAdd: () => void;
+    }>>;
 }) {
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
@@ -600,25 +472,17 @@ function AppSidebar({
             <Stack spacing={0.25}>
                 {MODES.map((mode) => {
                     const active = appMode === mode.id;
+                    const section = modeSections?.[mode.id];
 
                     return (
                         <React.Fragment key={mode.id}>
                             <Box
-                                component="button"
-                                type="button"
-                                onClick={() => onModeChange(mode.id)}
                                 sx={{
                                     width: '100%',
                                     minHeight: 34,
                                     display: 'flex',
                                     alignItems: 'center',
-                                    gap: 1,
-                                    px: 1,
-                                    py: 0.55,
-                                    border: 0,
                                     borderRadius: '8px',
-                                    cursor: 'pointer',
-                                    textAlign: 'left',
                                     color: active ? 'text.primary' : 'text.secondary',
                                     bgcolor: active
                                         ? isDark ? 'rgba(255,255,255,0.08)' : 'rgba(15,23,42,0.08)'
@@ -628,22 +492,86 @@ function AppSidebar({
                                     },
                                 }}
                             >
-                                <Box sx={{ display: 'flex', color: active ? 'primary.main' : 'text.secondary' }}>
-                                    {mode.icon}
+                                <Box
+                                    component="button"
+                                    type="button"
+                                    onClick={() => onModeChange(mode.id)}
+                                    sx={{
+                                        minWidth: 0,
+                                        minHeight: 34,
+                                        flex: 1,
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        gap: 1,
+                                        px: 1,
+                                        py: 0.55,
+                                        border: 0,
+                                        color: 'inherit',
+                                        bgcolor: 'transparent',
+                                        cursor: 'pointer',
+                                        textAlign: 'left',
+                                    }}
+                                >
+                                    <Box sx={{ display: 'flex', color: active ? 'primary.main' : 'text.secondary' }}>
+                                        {mode.icon}
+                                    </Box>
+                                    <Box sx={{ minWidth: 0, flex: 1 }}>
+                                        <Typography sx={{ fontWeight: active ? 800 : 700, fontSize: '0.82rem' }} noWrap>
+                                            {mode.label}
+                                        </Typography>
+                                        <Typography sx={{ color: 'text.secondary', display: 'none', fontSize: '0.72rem' }} noWrap>
+                                            {mode.subtitle}
+                                        </Typography>
+                                    </Box>
                                 </Box>
-                                <Box sx={{ minWidth: 0, flex: 1 }}>
-                                    <Typography sx={{ fontWeight: active ? 800 : 700, fontSize: '0.82rem' }} noWrap>
-                                        {mode.label}
-                                    </Typography>
-                                    <Typography sx={{ color: 'text.secondary', display: 'none', fontSize: '0.72rem' }} noWrap>
-                                        {mode.subtitle}
-                                    </Typography>
-                                </Box>
+                                {section && (
+                                    <Stack direction="row" alignItems="center" spacing={0.15} sx={{ pr: 0.35, flexShrink: 0 }}>
+                                        <Tooltip title="Tạo phiên mới">
+                                            <IconButton
+                                                size="small"
+                                                aria-label={`Tạo phiên mới trong ${mode.label}`}
+                                                onClick={() => {
+                                                    onModeChange(mode.id);
+                                                    section.onAdd();
+                                                }}
+                                                sx={{ width: 24, height: 24, p: 0, color: 'text.secondary', borderRadius: '6px' }}
+                                            >
+                                                <AddIcon sx={{ fontSize: 17 }} />
+                                            </IconButton>
+                                        </Tooltip>
+                                        <IconButton
+                                            size="small"
+                                            aria-label={active && section.open ? `Thu gọn ${mode.label}` : `Mở rộng ${mode.label}`}
+                                            onClick={() => {
+                                                if (!active) {
+                                                    onModeChange(mode.id);
+                                                } else {
+                                                    section.onToggle();
+                                                }
+                                            }}
+                                            sx={{ width: 24, height: 24, p: 0, color: 'text.secondary', borderRadius: '6px' }}
+                                        >
+                                            {active && section.open
+                                                ? <ExpandLessIcon sx={{ fontSize: 16 }} />
+                                                : <ExpandMoreIcon sx={{ fontSize: 16 }} />}
+                                        </IconButton>
+                                    </Stack>
+                                )}
                             </Box>
-                            {active && modePanels?.[mode.id] && (
-                                <Box sx={{ mb: 0.35 }}>
-                                    {modePanels[mode.id]}
-                                </Box>
+                            {modePanels?.[mode.id] && (
+                                <Collapse in={active && (section?.open ?? true)}>
+                                    <Box
+                                        sx={{
+                                            ml: 1.35,
+                                            pl: 1,
+                                            mb: 0.35,
+                                            borderLeft: '1px solid',
+                                            borderColor: 'divider',
+                                        }}
+                                    >
+                                        {modePanels[mode.id]}
+                                    </Box>
+                                </Collapse>
                             )}
                         </React.Fragment>
                     );
@@ -655,8 +583,6 @@ function AppSidebar({
 
 export default function Home() {
     const { isDarkMode } = useContext(ThemeContext);
-    const testCurrentSession = useTestSessionStore((state) => state.currentSession);
-    const liveCurrentSession = useLiveSessionStore((state) => state.currentSession);
     const [appMode, setAppMode] = useState<AppMode>('test');
     const [testTab, setTestTab]   = useState(0);
     const [liveTab, setLiveTab]   = useState(0);
@@ -687,6 +613,18 @@ export default function Home() {
     const panelBorder = isDarkMode
         ? '1px solid rgba(245, 245, 245, 0.08)'
         : '1px solid rgba(15, 23, 42, 0.08)';
+    const sidebarModeSections = {
+        test: {
+            open: sessionOpen,
+            onToggle: () => setSessionOpen((open) => !open),
+            onAdd: () => setTestCreateOpen(true),
+        },
+        live: {
+            open: liveSessionOpen,
+            onToggle: () => setLiveSessionOpen((open) => !open),
+            onAdd: () => setLiveCreateOpen(true),
+        },
+    };
 
     return (
         <Box sx={{ minHeight: '100vh', bgcolor: 'background.default', display: 'flex', flexDirection: 'column' }}>
@@ -824,20 +762,13 @@ export default function Home() {
                                         panelBg={panelBg}
                                         panelBorder={panelBorder}
                                         onHide={() => setSidebarOpen(false)}
+                                        modeSections={sidebarModeSections}
                                         modePanels={{
                                             test: (
-                                                <SidebarTreeSection
-                                                    title={testCurrentSession?.name || 'Session'}
-                                                    open={sessionOpen}
-                                                    onToggle={() => setSessionOpen(o => !o)}
-                                                    onAdd={() => setTestCreateOpen(true)}
-                                                    accentColor="#6d5dfc"
-                                                >
-                                                    <SessionPanel
-                                                        createOpen={testCreateOpen}
-                                                        onCreateOpenChange={setTestCreateOpen}
-                                                    />
-                                                </SidebarTreeSection>
+                                                <SessionPanel
+                                                    createOpen={testCreateOpen}
+                                                    onCreateOpenChange={setTestCreateOpen}
+                                                />
                                             ),
                                         }}
                                     />
@@ -928,20 +859,13 @@ export default function Home() {
                                         panelBg={panelBg}
                                         panelBorder={panelBorder}
                                         onHide={() => setSidebarOpen(false)}
+                                        modeSections={sidebarModeSections}
                                         modePanels={{
                                             live: (
-                                                <SidebarTreeSection
-                                                    title={liveCurrentSession?.name || 'Session'}
-                                                    open={liveSessionOpen}
-                                                    onToggle={() => setLiveSessionOpen(o => !o)}
-                                                    onAdd={() => setLiveCreateOpen(true)}
-                                                    accentColor="#34d399"
-                                                >
-                                                    <LiveSessionMiniPanel
-                                                        createOpen={liveCreateOpen}
-                                                        onCreateOpenChange={setLiveCreateOpen}
-                                                    />
-                                                </SidebarTreeSection>
+                                                <LiveSessionMiniPanel
+                                                    createOpen={liveCreateOpen}
+                                                    onCreateOpenChange={setLiveCreateOpen}
+                                                />
                                             ),
                                         }}
                                     />
@@ -1032,6 +956,7 @@ export default function Home() {
                                         panelBg={panelBg}
                                         panelBorder={panelBorder}
                                         onHide={() => setSidebarOpen(false)}
+                                        modeSections={sidebarModeSections}
                                     />
                                 </Box>
                             </Grid>
