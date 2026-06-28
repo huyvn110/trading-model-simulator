@@ -1,93 +1,133 @@
-# Trading jounal
+# Trading Model Simulator (Trade Tracker)
 
+Trading Model Simulator, hay Trade Tracker, là một ứng dụng giúp trader mô phỏng, ghi lại và phân tích các giao dịch của mình. Ứng dụng hỗ trợ cả chế độ backtest, live trading, ghi chú quy tắc giao dịch và lưu lại bài học sau mỗi phiên.
 
+Dự án được xây dựng bằng **Next.js** và có thể chạy như web app hoặc desktop app thông qua **Electron**.
 
-## Getting started
+## Tính Năng Chính
 
-To make it easy for you to get started with GitLab, here's a list of recommended next steps.
+### 1. Test Mode
 
-Already a pro? Just edit this README.md and make it your own. Want to make it easy? [Use the template at the bottom](#editing-this-readme)!
+- **Quản lý session**: tạo và quản lý các phiên giao dịch mô phỏng.
+- **Ghi log trade**: lưu chi tiết từng lệnh cùng các factor ảnh hưởng đến quyết định vào lệnh.
+- **Thống kê và biểu đồ**: trực quan hóa kết quả bằng chart và bảng thống kê.
+- **Lịch sử trades**: xem lại, phân tích và đánh giá các lệnh đã ghi.
 
-## Add your files
+### 2. Live Mode
 
-* [Create](https://docs.gitlab.com/user/project/repository/web_editor/#create-a-file) or [upload](https://docs.gitlab.com/user/project/repository/web_editor/#upload-a-file) files
-* [Add files using the command line](https://docs.gitlab.com/topics/git/add_files/#add-files-to-a-git-repository) or push an existing Git repository with the following command:
+- **Quản lý model**: tạo và theo dõi các mô hình hoặc chiến lược giao dịch khác nhau.
+- **Trade panel**: ghi lệnh thực chiến theo model đã chọn.
+- **Phân tích thực chiến**: xem biểu đồ, thống kê và hiệu suất theo model.
+- **Session history**: lưu trữ và đánh giá hiệu suất theo từng phiên live.
 
+### 3. Notes
+
+- Soạn thảo và lưu trữ quy tắc giao dịch.
+- Hỗ trợ trình soạn thảo dạng Notion-like và simple note editor.
+- Lưu bài học, nhật ký tâm lý giao dịch và kinh nghiệm cá nhân.
+
+## Công Nghệ Sử Dụng
+
+- **Framework**: Next.js 14, React 18
+- **UI**: Material UI v5, Emotion
+- **Desktop app**: Electron
+- **State management**: Zustand
+- **Charts**: Chart.js, react-chartjs-2
+- **Drag and drop**: @dnd-kit
+- **Lưu trữ và đồng bộ**: local storage, IndexedDB, Supabase, Google Drive upload
+- **Ngôn ngữ**: TypeScript
+
+## Cài Đặt Và Chạy Dự Án
+
+### Yêu Cầu
+
+- Node.js 18 trở lên
+- npm hoặc yarn
+
+### Cài Dependencies
+
+```bash
+npm install
 ```
-cd existing_repo
-git remote add origin https://gitlab.com/huyvn110-group/trading-jounal.git
-git branch -M main
-git push -uf origin main
+
+### Chạy Web App
+
+```bash
+npm run dev
 ```
 
-## Integrate with your tools
+Sau đó mở:
 
-* [Set up project integrations](https://gitlab.com/huyvn110-group/trading-jounal/-/settings/integrations)
+```text
+http://localhost:3000
+```
 
-## Collaborate with your team
+### Chạy Desktop App Với Electron
 
-* [Invite team members and collaborators](https://docs.gitlab.com/user/project/members/)
-* [Create a new merge request](https://docs.gitlab.com/user/project/merge_requests/creating_merge_requests/)
-* [Automatically close issues from merge requests](https://docs.gitlab.com/user/project/issues/managing_issues/#closing-issues-automatically)
-* [Enable merge request approvals](https://docs.gitlab.com/user/project/merge_requests/approvals/)
-* [Set auto-merge](https://docs.gitlab.com/user/project/merge_requests/auto_merge/)
+```bash
+npm run electron:dev
+```
 
-## Test and Deploy
+### Build Web App
 
-Use the built-in continuous integration in GitLab.
+```bash
+npm run build
+```
 
-* [Get started with GitLab CI/CD](https://docs.gitlab.com/ci/quick_start/)
-* [Analyze your code for known vulnerabilities with Static Application Security Testing (SAST)](https://docs.gitlab.com/user/application_security/sast/)
-* [Deploy to Kubernetes, Amazon EC2, or Amazon ECS using Auto Deploy](https://docs.gitlab.com/topics/autodevops/requirements/)
-* [Use pull-based deployments for improved Kubernetes management](https://docs.gitlab.com/user/clusters/agent/)
-* [Set up protected environments](https://docs.gitlab.com/ci/environments/protected_environments/)
+### Build File Cài Đặt Windows
 
-***
+```bash
+npm run dist:win
+```
 
-# Editing this README
+## Cấu Hình Môi Trường
 
-When you're ready to make this README your own, just edit this file and use the handy template below (or feel free to structure it however you want - this is just a starting point!). Thanks to [makeareadme.com](https://www.makeareadme.com/) for this template.
+Dự án có file `.env.example` để tham khảo các biến môi trường cần thiết. Khi chạy các tính năng đăng nhập, đồng bộ cloud hoặc upload ảnh, cần cấu hình các dịch vụ liên quan như Google OAuth, Supabase và NextAuth.
 
-## Suggestions for a good README
+Tạo file `.env.local` từ `.env.example` rồi điền giá trị phù hợp:
 
-Every project is different, so consider which of these sections apply to yours. The sections used in the template are suggestions for most open source projects. Also keep in mind that while a README can be too long and detailed, too long is better than too short. If you think your README is too long, consider utilizing another form of documentation rather than cutting out information.
+```bash
+cp .env.example .env.local
+```
 
-## Name
-Choose a self-explaining name for your project.
+## Cấu Trúc Chính
 
-## Description
-Let people know what your project can do specifically. Provide context and add a link to any reference visitors might be unfamiliar with. A list of Features or a Background subsection can also be added here. If there are alternatives to your project, this is a good place to list differentiating factors.
+```text
+src/app                 Next.js app routes và API routes
+src/components          Giao diện Test Mode, Live Mode, Notes và shared UI
+src/store               Zustand stores cho session, model, factor, notes
+src/lib                 Auth, Supabase, upload ảnh, image store
+src/utils               Export Excel và backup/restore
+app-electron            Electron wrapper
+src-tauri               Cấu hình Tauri thử nghiệm
+public                  Asset public
+```
 
-## Badges
-On some READMEs, you may see small images that convey metadata, such as whether or not all the tests are passing for the project. You can use Shields to add some to your README. Many services also have instructions for adding a badge.
+## Workflow Gợi Ý
 
-## Visuals
-Depending on what you are making, it can be a good idea to include screenshots or even a video (you'll frequently see GIFs rather than actual videos). Tools like ttygif can help, but check out Asciinema for a more sophisticated method.
+Trước khi làm tính năng mới:
 
-## Installation
-Within a particular ecosystem, there may be a common way of installing things, such as using Yarn, NuGet, or Homebrew. However, consider the possibility that whoever is reading your README is a novice and would like more guidance. Listing specific steps helps remove ambiguity and gets people to using your project as quickly as possible. If it only runs in a specific context like a particular programming language version or operating system or has dependencies that have to be installed manually, also add a Requirements subsection.
+- Xác định rõ tính năng cần làm.
+- Xác định phạm vi ảnh hưởng tới component, store hoặc API route nào.
+- Kiểm tra trạng thái Git hiện tại.
 
-## Usage
-Use examples liberally, and show the expected output if you can. It's helpful to have inline the smallest example of usage that you can demonstrate, while providing links to more sophisticated examples if they are too long to reasonably include in the README.
+Trong khi làm:
 
-## Support
-Tell people where they can go to for help. It can be any combination of an issue tracker, a chat room, an email address, etc.
+- Thay đổi theo từng bước nhỏ.
+- Chạy thử thường xuyên trên trình duyệt.
+- Tránh sửa lan sang phần không liên quan.
 
-## Roadmap
-If you have ideas for releases in the future, it is a good idea to list them in the README.
+Sau khi hoàn thành:
 
-## Contributing
-State if you are open to contributions and what your requirements are for accepting them.
+```bash
+git status
+git add .
+git commit -m "Mô tả thay đổi"
+```
 
-For people who want to make changes to your project, it's helpful to have some documentation on how to get started. Perhaps there is a script that they should run or some environment variables that they need to set. Make these steps explicit. These instructions could also be useful to your future self.
+## Ghi Chú
 
-You can also document commands to lint the code or run tests. These steps help to ensure high code quality and reduce the likelihood that the changes inadvertently break something. Having instructions for running tests is especially helpful if it requires external setup, such as starting a Selenium server for testing in a browser.
-
-## Authors and acknowledgment
-Show your appreciation to those who have contributed to the project.
-
-## License
-For open source projects, say how it is licensed.
-
-## Project status
-If you have run out of energy or time for your project, put a note at the top of the README saying that development has slowed down or stopped completely. Someone may choose to fork your project or volunteer to step in as a maintainer or owner, allowing your project to keep going. You can also make an explicit request for maintainers.
+- README này mô tả trạng thái hiện tại của dự án Trade Tracker.
+- Một số dữ liệu được lưu local bằng Zustand persist.
+- Live session có cơ chế đồng bộ cloud qua Supabase khi người dùng đăng nhập.
+- Ảnh trong trade có thể lưu local bằng IndexedDB hoặc upload lên Google Drive tùy luồng sử dụng.

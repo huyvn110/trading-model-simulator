@@ -1,0 +1,19 @@
+Date ,Time,Market,Session,Bias,Result,PnL,RR,RR Value,Follow Plan,Emotion,Mistake,Note, Link,Setup Combo,Nhân Combo
+09/06/2026,7:06:09,mgc,Asia,Long,Loss,-256.50,-0.86,-1.00,Yes,,Moved SL,,https://www.youtube.com/live/nRg8n5GM6Fg,1,D protraction + Asia + ERL + 2 cic + 30m
+09/06/2026,8:06:09,mgc,Asia,Short,Loss,-256.50,-0.86,-1.00,No,,FOMO,không đợi cisd,https://www.youtube.com/live/nRg8n5GM6Fg,2,D expansion + Asia + IRL + SMT fill + 1 cic + 30m
+10/06/2026,8:00 AM,mgc,Asia,Long,Win,605.00,2.02,5.00,Yes,,None,,,3,D expansion + Asia + IRL + SMT fill + 2 cic + 30m
+11/06/2026,8:30 AM,mgc,Asia,Short,Loss,-280.00,-0.93,,No,,FOMO,không đợi cisd,,None,
+11/06/2026,9:00 AM,mNQ,Asia,Long,Win,540.00,1.80,5.00,Yes,,,,,3,D expansion + Asia + IRL + SMT fill + 2 cic + 30m
+12/06/2026,9:22 AM,mNQ,Asia,Short,Win,202.50,0.68,,Yes,,FOMO,vào cisd xấu do ko chỉnh công cụ sớm,,1,D protraction + Asia + ERL + 2 cic + 30m
+12/06/2026,9:57 AM,mNQ,Asia,Long,Win,605.50,2.02,3.00,Yes,,None,,,2,D expansion + Asia + IRL + SMT fill + 1 cic + 30m
+15/06/2026,8:00,mgc,Asia,Long,Win,552.00,1.84,3.00,Yes,,Moved SL,,,4,D expansion + Asia + IRL + PSP + 1 cic + 30m
+16/06/2026,,mgc,Asia,Long,Win,612.00,2.04,,Yes,,,"m30 có 2 cic nhưng cây đánh là cây c4 tương đương cây c3 H1 , và  1h có 1 smt , nhưng kèo này khá luck",,Luck,
+17/06/2026,9:00 AM,mgc,Asia,Short,Loss,-224.00,-0.75,,No,,FOMO,,,1,D protraction + Asia + ERL + 2 cic + 30m
+17/06/2026,9:09 AM,mNQ,Asia,Long,Win,369.00,1.23,2.00,Yes,,Moved SL,nhot cắt sớm 1 r,,2,D expansion + Asia + IRL + SMT fill + 1 cic + 30m
+17/06/2026,10:03 AM,mNQ,Asia,Short,Win,630.50,2.10,3.00,Yes,,,,,1,D protraction + Asia + ERL + 2 cic + 30m
+18/06/2026,10:10 AM,mgc,Asia,Short,Loss,-288.00,-0.96,,No,,,có smt ngườc c1 mà ko nhìn ra ,,None,
+18/06/2026,10:15 AM,mNQ,Asia,Short,Win,"1,204.00",4.01,,Yes,,,,,1,D protraction + Asia + ERL + 2 cic + 30m
+,,,,,,,0.00,,,,,,,2,D expansion + Asia + IRL + SMT fill + 1 cic + 30m
+,,,,,,,,,,,,,,5,D protraction + London + ERL + 2 cic + 1h
+,,,,,,,,,,,,,,6,D expansion + Asia + IRL + 2 cic + 30m
+,,,,,,,,,,,,,,6,D expansion + Asia + IRL + 2 cic + 30m

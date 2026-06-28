@@ -16,14 +16,13 @@ import {
     TableRow,
     ThemeProvider,
     createTheme,
-    ToggleButton,
-    ToggleButtonGroup,
 } from '@mui/material';
 import { useLiveSessionStore } from '@/store/liveSessionStore';
 import { LiveBestModel } from './LiveBestModel';
 import { TopMetrics } from '@/components/shared/TopMetrics';
 import { TradingCalendar } from '@/components/shared/TradingCalendar';
 import { EquityChart } from '@/components/shared/EquityChart';
+import { PerformanceAnalytics } from '@/components/shared/PerformanceAnalytics';
 
 // Dark theme for premium look
 const darkTheme = createTheme({
@@ -46,11 +45,7 @@ function LiveChartsComponent() {
     const { getCurrentSessionStats, currentSession } = useLiveSessionStore();
     const stats = getCurrentSessionStats();
     
-    // Default to the session's measurement mode or RR if none
-    const [viewMode, setViewMode] = React.useState<'RR' | '$'>(() => {
-        if (currentSession?.measurementMode === '$') return '$';
-        return 'RR';
-    });
+    const viewMode = '$' as const;
 
     const trades = currentSession?.trades || [];
     const initialBalance = currentSession?.initialBalance || 0;
@@ -62,6 +57,18 @@ function LiveChartsComponent() {
         measurementValue: t.measurementValue ?? 0,
         pnl: t.pnl,
         rr: t.rr,
+    })), [trades]);
+
+    const analyticsTrades = useMemo(() => trades.map(t => ({
+        id: t.id,
+        timestamp: t.timestamp,
+        tradeDate: t.tradeDate,
+        result: t.result,
+        measurementValue: t.measurementValue ?? 0,
+        pnl: t.pnl,
+        rr: t.rr,
+        market: t.market || 'Unspecified',
+        setupName: t.modelName || 'None',
     })), [trades]);
 
     // Calculate dynamic stats for the lower half ranking
@@ -81,9 +88,9 @@ function LiveChartsComponent() {
             }
             acc[key].totalTrades++;
             
-            const tradeValue = viewMode === '$' 
-                ? (trade.pnl !== undefined ? trade.pnl : trade.measurementValue)
-                : (trade.rr !== undefined ? trade.rr : trade.measurementValue);
+            const tradeValue = Math.abs(viewMode === '$'
+                ? (trade.pnl !== undefined ? trade.pnl : trade.measurementValue ?? 0)
+                : (trade.rr !== undefined ? trade.rr : trade.measurementValue ?? 0));
 
             if (trade.result === 'win') {
                 acc[key].wins++;
@@ -117,23 +124,6 @@ function LiveChartsComponent() {
 
     return (
         <Stack spacing={3}>
-            {/* Mode Toggle Container */}
-            <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: -2 }}>
-                <ToggleButtonGroup
-                    value={viewMode}
-                    exclusive
-                    onChange={(_, val) => val && setViewMode(val)}
-                    size="small"
-                    sx={{
-                        bgcolor: 'background.paper',
-                        '& .MuiToggleButton-root': { py: 0.5, px: 2, fontSize: '0.8rem', fontWeight: 600 }
-                    }}
-                >
-                    <ToggleButton value="RR">RR</ToggleButton>
-                    <ToggleButton value="$">PnL ($)</ToggleButton>
-                </ToggleButtonGroup>
-            </Box>
-
             {/* Dashboard: Top Metrics */}
             <ThemeProvider theme={darkTheme}>
                 <TopMetrics trades={transformedTrades} initialBalance={initialBalance} measurementMode={viewMode} />
@@ -150,6 +140,12 @@ function LiveChartsComponent() {
                     </Box>
                 </Stack>
             </ThemeProvider>
+
+            <PerformanceAnalytics
+                trades={analyticsTrades}
+                initialBalance={initialBalance}
+                measurementMode={viewMode}
+            />
 
             <LiveBestModel />
             <ThemeProvider theme={darkTheme}>

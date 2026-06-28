@@ -2,37 +2,39 @@
 
 import React, { useState } from 'react';
 import {
+    alpha,
     Box,
-    Typography,
-    Checkbox,
-    IconButton,
-    TextField,
     Button,
-    Tooltip,
-    Stack,
+    Checkbox,
+    Chip,
     Dialog,
-    DialogTitle,
+    DialogActions,
     DialogContent,
     DialogContentText,
-    DialogActions,
+    DialogTitle,
+    IconButton,
+    Stack,
+    TextField,
+    Tooltip,
+    Typography,
     useTheme,
-    alpha,
 } from '@mui/material';
 import {
     Add as AddIcon,
-    Delete as DeleteIcon,
-    DragIndicator as DragIcon,
     CheckBox as CheckBoxIcon,
     CheckBoxOutlineBlank as CheckBoxOutlineBlankIcon,
+    Delete as DeleteIcon,
+    DragIndicator as DragIcon,
+    Tune as ManageIcon,
 } from '@mui/icons-material';
 import {
-    DndContext,
     closestCenter,
+    DndContext,
+    DragEndEvent,
     KeyboardSensor,
     PointerSensor,
     useSensor,
     useSensors,
-    DragEndEvent,
 } from '@dnd-kit/core';
 import {
     SortableContext,
@@ -42,8 +44,8 @@ import {
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useFactorStore } from '@/store/factorStore';
-import { Factor } from '@/types';
 import { FACTOR_COLORS } from '@/theme/theme';
+import { Factor } from '@/types';
 
 interface SortableFactorProps {
     factor: Factor;
@@ -58,274 +60,290 @@ function SortableFactor({ factor, colorIdx, onToggle, onUpdate, onDelete }: Sort
     const [editValue, setEditValue] = useState(factor.name);
     const theme = useTheme();
     const isDark = theme.palette.mode === 'dark';
-
     const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: factor.id });
-
-    const style = {
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.5 : 1,
-    };
-
     const fc = FACTOR_COLORS[colorIdx % FACTOR_COLORS.length];
 
-    const handleDoubleClick = () => { setIsEditing(true); setEditValue(factor.name); };
-    const handleBlur = () => {
+    const handleSave = () => {
         setIsEditing(false);
-        if (editValue.trim() && editValue !== factor.name) onUpdate(editValue.trim());
+        const nextName = editValue.trim();
+        if (nextName && nextName !== factor.name) onUpdate(nextName);
         else setEditValue(factor.name);
-    };
-    const handleKeyDown = (e: React.KeyboardEvent) => {
-        if (e.key === 'Enter') handleBlur();
-        else if (e.key === 'Escape') { setIsEditing(false); setEditValue(factor.name); }
     };
 
     return (
         <Box
             ref={setNodeRef}
-            style={style}
+            style={{
+                transform: CSS.Transform.toString(transform),
+                transition,
+                opacity: isDragging ? 0.55 : 1,
+            }}
             sx={{
                 display: 'flex',
                 alignItems: 'center',
                 gap: 0.75,
-                py: 0.75,
+                py: 0.85,
                 px: 1.25,
-                mb: 0.5,
+                mb: 0.75,
                 borderRadius: 2,
-                cursor: 'default',
                 border: '1px solid',
-                transition: 'all 0.2s ease',
-                // Color coding based on selection + factor color
-                ...(factor.selected ? {
-                    bgcolor: isDark ? alpha(fc.bg, 0.12) : alpha(fc.bg, 0.07),
-                    borderColor: alpha(fc.bg, 0.35),
-                } : {
-                    bgcolor: 'transparent',
-                    borderColor: 'transparent',
-                    '&:hover': {
-                        bgcolor: isDark ? 'rgba(241,245,249,0.05)' : 'rgba(15,23,42,0.04)',
-                        borderColor: 'divider',
-                    },
-                }),
+                bgcolor: factor.selected
+                    ? alpha(fc.bg, isDark ? 0.14 : 0.08)
+                    : alpha(theme.palette.text.primary, isDark ? 0.025 : 0.02),
+                borderColor: factor.selected ? alpha(fc.bg, 0.38) : 'divider',
             }}
         >
-            {/* Drag handle */}
-            <IconButton
-                className="drag-handle"
-                size="small"
-                sx={{
-                    cursor: 'grab',
-                    p: 0.25,
-                    opacity: 0,
-                    '.factor-row:hover &': { opacity: 1 },
-                    '&:hover': { bgcolor: 'action.hover' },
-                }}
-                {...attributes}
-                {...listeners}
-            >
-                <DragIcon sx={{ fontSize: 16, color: 'text.disabled' }} />
+            <IconButton size="small" sx={{ cursor: 'grab', p: 0.25 }} {...attributes} {...listeners}>
+                <DragIcon sx={{ fontSize: 17, color: 'text.disabled' }} />
             </IconButton>
 
-            {/* Color dot */}
-            <Box sx={{
-                width: 8, height: 8, borderRadius: '50%', flexShrink: 0,
-                bgcolor: fc.bg,
-                boxShadow: factor.selected ? `0 0 6px ${alpha(fc.bg, 0.7)}` : 'none',
-                transition: 'box-shadow 0.2s ease',
-            }} />
+            <Box
+                sx={{
+                    width: 8,
+                    height: 8,
+                    borderRadius: '50%',
+                    bgcolor: fc.bg,
+                    boxShadow: factor.selected ? `0 0 8px ${alpha(fc.bg, 0.7)}` : 'none',
+                    flexShrink: 0,
+                }}
+            />
 
-            {/* Checkbox */}
             <Checkbox
                 checked={factor.selected}
                 onChange={onToggle}
                 size="small"
-                sx={{
-                    p: 0.25,
-                    color: alpha(fc.bg, 0.5),
-                    '&.Mui-checked': { color: fc.bg },
-                }}
+                sx={{ p: 0.25, color: alpha(fc.bg, 0.5), '&.Mui-checked': { color: fc.bg } }}
             />
 
-            {/* Name (editable) */}
             {isEditing ? (
                 <TextField
                     value={editValue}
-                    onChange={e => setEditValue(e.target.value)}
-                    onBlur={handleBlur}
-                    onKeyDown={handleKeyDown}
+                    onChange={(event) => setEditValue(event.target.value)}
+                    onBlur={handleSave}
+                    onKeyDown={(event) => {
+                        if (event.key === 'Enter') handleSave();
+                        if (event.key === 'Escape') {
+                            setEditValue(factor.name);
+                            setIsEditing(false);
+                        }
+                    }}
                     autoFocus
                     size="small"
                     variant="standard"
-                    sx={{
-                        flex: 1,
-                        '& .MuiInput-underline:before': { borderBottom: 'none' },
-                        '& .MuiInput-underline:after': { borderColor: fc.bg },
-                    }}
-                    InputProps={{ sx: { fontSize: '0.875rem', fontWeight: 500 } }}
+                    sx={{ flex: 1 }}
                 />
             ) : (
                 <Typography
-                    onDoubleClick={handleDoubleClick}
+                    onDoubleClick={() => {
+                        setEditValue(factor.name);
+                        setIsEditing(true);
+                    }}
                     sx={{
                         flex: 1,
-                        cursor: 'text',
-                        fontSize: '0.875rem',
-                        fontWeight: factor.selected ? 600 : 400,
-                        py: 0.25,
+                        fontSize: '0.88rem',
+                        fontWeight: factor.selected ? 800 : 500,
                         color: factor.selected ? fc.text : 'text.secondary',
-                        transition: 'all 0.15s ease',
+                        cursor: 'text',
                     }}
                 >
                     {factor.name}
                 </Typography>
             )}
 
-            {/* Delete */}
-            <IconButton
-                className="delete-btn"
-                size="small"
-                onClick={onDelete}
-                sx={{
-                    p: 0.25, opacity: 0,
-                    color: 'error.main',
-                    '.factor-row:hover &': { opacity: 1 },
-                    '&:hover': { bgcolor: alpha('#f43f5e', 0.1) },
-                }}
-            >
-                <DeleteIcon sx={{ fontSize: 16 }} />
-            </IconButton>
+            <Tooltip title="Xóa factor">
+                <IconButton size="small" color="error" onClick={onDelete} sx={{ p: 0.35 }}>
+                    <DeleteIcon sx={{ fontSize: 17 }} />
+                </IconButton>
+            </Tooltip>
         </Box>
     );
 }
 
 export function FactorList() {
-    const [newFactorName, setNewFactorName] = useState('');
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-    const [factorToDelete, setFactorToDelete] = useState<Factor | null>(null);
     const theme = useTheme();
-    const isDark = theme.palette.mode === 'dark';
-
     const { factors, addFactor, updateFactor, deleteFactor, toggleFactor, toggleAll, reorderFactors } = useFactorStore();
+    const [manageOpen, setManageOpen] = useState(false);
+    const [newFactorName, setNewFactorName] = useState('');
+    const [deleteOpen, setDeleteOpen] = useState(false);
+    const [factorToDelete, setFactorToDelete] = useState<Factor | null>(null);
 
     const sensors = useSensors(
         useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
         useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
     );
 
-    const handleDragEnd = (e: DragEndEvent) => {
-        const { active, over } = e;
+    const selectedFactors = factors.filter((factor) => factor.selected);
+    const allSelected = factors.length > 0 && selectedFactors.length === factors.length;
+
+    const handleDragEnd = (event: DragEndEvent) => {
+        const { active, over } = event;
         if (over && active.id !== over.id) reorderFactors(active.id as string, over.id as string);
     };
 
     const handleAddFactor = () => {
-        if (newFactorName.trim()) { addFactor(newFactorName.trim()); setNewFactorName(''); }
+        const name = newFactorName.trim();
+        if (!name) return;
+        addFactor(name);
+        setNewFactorName('');
     };
 
-    const selectedCount = factors.filter(f => f.selected).length;
-    const allSelected   = selectedCount === factors.length && factors.length > 0;
+    const confirmDelete = () => {
+        if (factorToDelete) deleteFactor(factorToDelete.id);
+        setDeleteOpen(false);
+        setFactorToDelete(null);
+    };
 
     return (
-        <Box sx={{ p: 2.5, pb: 1.5 }}>
-            {/* Header */}
-            <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.5 }}>
-                <Stack direction="row" alignItems="center" spacing={1}>
-                    <Typography variant="h6" sx={{ fontWeight: 700, fontSize: '0.95rem' }}>
-                        Factors
-                    </Typography>
-                    {/* Selected count badge */}
-                    {selectedCount > 0 && (
-                        <Box sx={{
-                            px: 1, py: 0.1, borderRadius: 2,
-                            bgcolor: alpha('#2383e2', 0.15),
-                            border: `1px solid ${alpha('#2383e2', 0.3)}`,
-                        }}>
-                            <Typography sx={{ fontSize: '0.7rem', fontWeight: 700, color: '#529aec' }}>
-                                {selectedCount} selected
-                            </Typography>
-                        </Box>
+        <Box sx={{ px: 1.75, pt: 1.75, pb: 0.75 }}>
+            <Box
+                sx={{
+                    p: 1.5,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: alpha(theme.palette.text.primary, theme.palette.mode === 'dark' ? 0.025 : 0.018),
+                }}
+            >
+                <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={1.25}>
+                    <Box sx={{ minWidth: 0 }}>
+                        <Stack direction="row" alignItems="center" spacing={1}>
+                            <Typography sx={{ fontWeight: 900, fontSize: '0.95rem' }}>Factors</Typography>
+                            <Chip
+                                size="small"
+                                label={`${selectedFactors.length}/${factors.length}`}
+                                sx={{ height: 22, fontSize: '0.7rem', fontWeight: 800 }}
+                            />
+                        </Stack>
+                        <Typography sx={{ mt: 0.25, color: 'text.secondary', fontSize: '0.75rem' }}>
+                            Chọn setup trước khi ghi trade
+                        </Typography>
+                    </Box>
+
+                    <Stack direction="row" spacing={0.75}>
+                        <Tooltip title={allSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}>
+                            <IconButton
+                                size="small"
+                                onClick={() => toggleAll(!allSelected)}
+                                sx={{ border: '1px solid', borderColor: 'divider' }}
+                            >
+                                {allSelected ? <CheckBoxIcon fontSize="small" /> : <CheckBoxOutlineBlankIcon fontSize="small" />}
+                            </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Quản lý factors">
+                            <IconButton
+                                size="small"
+                                onClick={() => setManageOpen(true)}
+                                sx={{ border: '1px solid', borderColor: 'divider' }}
+                            >
+                                <ManageIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                    </Stack>
+                </Stack>
+
+                <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1.25 }}>
+                    {selectedFactors.length === 0 ? (
+                        <Chip size="small" label="Chưa chọn factor" sx={{ height: 24, fontWeight: 700 }} />
+                    ) : selectedFactors.slice(0, 5).map((factor) => {
+                        const idx = factors.findIndex((item) => item.id === factor.id);
+                        const color = FACTOR_COLORS[idx % FACTOR_COLORS.length];
+                        return (
+                            <Chip
+                                key={factor.id}
+                                size="small"
+                                label={factor.name}
+                                onDelete={() => toggleFactor(factor.id)}
+                                sx={{
+                                    height: 24,
+                                    fontSize: '0.72rem',
+                                    fontWeight: 800,
+                                    bgcolor: color.light,
+                                    color: color.text,
+                                    border: `1px solid ${alpha(color.bg, 0.35)}`,
+                                }}
+                            />
+                        );
+                    })}
+                    {selectedFactors.length > 5 && (
+                        <Chip size="small" label={`+${selectedFactors.length - 5}`} sx={{ height: 24, fontWeight: 800 }} />
                     )}
                 </Stack>
-                <Stack direction="row" alignItems="center" spacing={0.5}>
-                    <Typography variant="caption" sx={{ color: 'text.secondary' }}>
-                        {selectedCount}/{factors.length}
-                    </Typography>
-                    <Tooltip title={allSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}>
-                        <IconButton size="small" onClick={() => toggleAll(!allSelected)} sx={{ p: 0.5 }}>
-                            {allSelected
-                                ? <CheckBoxIcon sx={{ fontSize: 18, color: 'primary.main' }} />
-                                : <CheckBoxOutlineBlankIcon sx={{ fontSize: 18, color: 'text.secondary' }} />}
-                        </IconButton>
-                    </Tooltip>
-                </Stack>
-            </Stack>
+            </Box>
 
-            {/* Factor list */}
-            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                <SortableContext items={factors.map(f => f.id)} strategy={verticalListSortingStrategy}>
-                    <Box className="factor-row-container" sx={{ mb: 1 }}>
-                        {factors.map((factor, idx) => (
-                            <Box key={factor.id} className="factor-row" sx={{ '&:hover .drag-handle, &:hover .delete-btn': { opacity: 1 } }}>
-                                <SortableFactor
-                                    factor={factor}
-                                    colorIdx={idx}
-                                    onToggle={() => toggleFactor(factor.id)}
-                                    onUpdate={name => updateFactor(factor.id, name)}
-                                    onDelete={() => { setFactorToDelete(factor); setDeleteDialogOpen(true); }}
-                                />
-                            </Box>
-                        ))}
-                    </Box>
-                </SortableContext>
-            </DndContext>
+            <Dialog open={manageOpen} onClose={() => setManageOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Quản lý factors</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2} sx={{ pt: 0.5 }}>
+                        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>
+                            <TextField
+                                label="Tên factor mới"
+                                value={newFactorName}
+                                onChange={(event) => setNewFactorName(event.target.value)}
+                                onKeyDown={(event) => event.key === 'Enter' && handleAddFactor()}
+                                size="small"
+                                fullWidth
+                            />
+                            <Button
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={handleAddFactor}
+                                disabled={!newFactorName.trim()}
+                                sx={{ minWidth: 110 }}
+                            >
+                                Thêm
+                            </Button>
+                        </Stack>
 
-            {factors.length === 0 && (
-                <Box sx={{ py: 3, textAlign: 'center' }}>
-                    <Typography variant="body2" sx={{ color: 'text.disabled', fontSize: '0.82rem' }}>
-                        Chưa có factor. Thêm factor đầu tiên bên dưới.
-                    </Typography>
-                </Box>
-            )}
+                        <Stack direction="row" alignItems="center" justifyContent="space-between">
+                            <Typography sx={{ color: 'text.secondary', fontSize: '0.8rem' }}>
+                                Double-click tên factor để sửa. Kéo icon bên trái để đổi thứ tự.
+                            </Typography>
+                            <Button size="small" onClick={() => toggleAll(!allSelected)}>
+                                {allSelected ? 'Bỏ chọn tất cả' : 'Chọn tất cả'}
+                            </Button>
+                        </Stack>
 
-            {/* Add factor input */}
-            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
-                <TextField
-                    placeholder="Tên factor mới..."
-                    value={newFactorName}
-                    onChange={e => setNewFactorName(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && handleAddFactor()}
-                    size="small"
-                    fullWidth
-                />
-                <Button
-                    variant="contained"
-                    startIcon={<AddIcon />}
-                    onClick={handleAddFactor}
-                    disabled={!newFactorName.trim()}
-                    sx={{ whiteSpace: 'nowrap', minWidth: 80 }}
-                >
-                    Thêm
-                </Button>
-            </Stack>
+                        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <SortableContext items={factors.map((factor) => factor.id)} strategy={verticalListSortingStrategy}>
+                                <Box sx={{ maxHeight: 420, overflowY: 'auto', pr: 0.5 }}>
+                                    {factors.map((factor, idx) => (
+                                        <SortableFactor
+                                            key={factor.id}
+                                            factor={factor}
+                                            colorIdx={idx}
+                                            onToggle={() => toggleFactor(factor.id)}
+                                            onUpdate={(name) => updateFactor(factor.id, name)}
+                                            onDelete={() => {
+                                                setFactorToDelete(factor);
+                                                setDeleteOpen(true);
+                                            }}
+                                        />
+                                    ))}
+                                    {factors.length === 0 && (
+                                        <Typography sx={{ py: 4, textAlign: 'center', color: 'text.secondary' }}>
+                                            Chưa có factor nào.
+                                        </Typography>
+                                    )}
+                                </Box>
+                            </SortableContext>
+                        </DndContext>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setManageOpen(false)}>Đóng</Button>
+                </DialogActions>
+            </Dialog>
 
-            {/* Delete Dialog */}
-            <Dialog open={deleteDialogOpen} onClose={() => { setDeleteDialogOpen(false); setFactorToDelete(null); }}>
-                <DialogTitle>Xác nhận xóa Factor</DialogTitle>
+            <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Xóa factor</DialogTitle>
                 <DialogContent>
                     <DialogContentText>
-                        Bạn có chắc muốn xóa factor <strong>"{factorToDelete?.name}"</strong>?
+                        Bạn có chắc muốn xóa factor "{factorToDelete?.name}"?
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => { setDeleteDialogOpen(false); setFactorToDelete(null); }} color="inherit">Hủy</Button>
-                    <Button
-                        onClick={() => {
-                            if (factorToDelete) deleteFactor(factorToDelete.id);
-                            setDeleteDialogOpen(false); setFactorToDelete(null);
-                        }}
-                        color="error" variant="contained" autoFocus
-                    >
-                        Xóa
-                    </Button>
+                    <Button onClick={() => setDeleteOpen(false)}>Hủy</Button>
+                    <Button color="error" variant="contained" onClick={confirmDelete}>Xóa</Button>
                 </DialogActions>
             </Dialog>
         </Box>

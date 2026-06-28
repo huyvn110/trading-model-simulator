@@ -34,11 +34,13 @@ import {
     CheckCircle as WinIcon,
     Cancel as LoseIcon,
     Edit as EditIcon,
+    Share as ShareIcon,
 } from '@mui/icons-material';
 import { useTestSessionStore, TestTrade } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
 import { ContentBlock } from '@/types';
 import { NotionEditor, migrateToContentBlocks, extractFromContentBlocks } from '@/components/shared/NotionEditor';
+import { useShareSession } from '@/lib/useShareSession';
 
 interface TradeDetailsDialogProps {
     trade: TestTrade | null;
@@ -162,6 +164,7 @@ export function TestTrades() {
     const [selectedTrade, setSelectedTrade] = useState<TestTrade | null>(null);
     const [detailsOpen, setDetailsOpen] = useState(false);
     const [filterModelKey, setFilterModelKey] = useState<string>('all');
+    const { shareData, isSharing } = useShareSession();
 
     const getFactorName = (id: string) => {
         const factor = factors.find((f) => f.id === id);
@@ -295,6 +298,11 @@ export function TestTrades() {
                                     </TableCell>
                                     <TableCell align="right">
                                         <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                                            <Tooltip title="Chia sẻ lệnh">
+                                                <IconButton size="small" onClick={() => shareData('trade', trade)} disabled={isSharing}>
+                                                    <ShareIcon fontSize="small" sx={{ color: '#3b82f6' }} />
+                                                </IconButton>
+                                            </Tooltip>
                                             <Tooltip title="Chi tiết">
                                                 <IconButton size="small" onClick={() => handleOpenDetails(trade)}>
                                                     <EditIcon fontSize="small" />

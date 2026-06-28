@@ -131,7 +131,7 @@ function TradeDetailsDialog({ trade: tradeProp, open, onClose }: TradeDetailsDia
                                     onChange={handleContentChange}
                                     placeholder="Thêm ghi chú hoặc ảnh..."
                                     sessionId={currentSession?.id}
-                                    sessionName={currentSession ? `[Live] ${new Date(currentSession.startTime).toLocaleDateString('vi-VN')}` : undefined}
+                                    sessionName={currentSession ? `[Live] ${currentSession.name || new Date(currentSession.startTime).toLocaleDateString('vi-VN')}` : undefined}
                                 />
                             </Box>
                         </Paper>

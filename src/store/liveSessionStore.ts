@@ -19,7 +19,7 @@ interface LiveSessionState {
 
     // Current session
     currentSession: LiveSession | null;
-    startSession: (initialBalance: number) => void;
+    startSession: (initialBalance: number, name?: string) => void;
     endSession: () => void;
 
     // Trade management
@@ -90,14 +90,29 @@ export const useLiveSessionStore = create<LiveSessionState>()(
                 }
             },
 
-            startSession: (initialBalance: number) => {
+            startSession: (initialBalance: number, name?: string) => {
+                const { currentSession, sessionHistory } = get();
                 const session: LiveSession = {
                     id: uuidv4(),
+                    name,
                     startTime: Date.now(),
                     initialBalance,
                     measurementMode: get().measurementMode,
                     trades: [],
                 };
+
+                if (currentSession?.trades.length) {
+                    const endedSession = {
+                        ...currentSession,
+                        endTime: Date.now(),
+                    };
+                    set({
+                        currentSession: session,
+                        sessionHistory: [endedSession, ...sessionHistory].slice(0, 100),
+                    });
+                    return;
+                }
+
                 set({ currentSession: session });
             },
 

@@ -1,607 +1,496 @@
 'use client';
 
-import React, { useState, useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import {
+    Alert,
     Box,
-    Paper,
-    Typography,
-    TextField,
     Button,
-    Stack,
-    ToggleButton,
-    ToggleButtonGroup,
     Chip,
-    List,
-    ListItem,
-    ListItemText,
-    ListItemSecondaryAction,
-    IconButton,
-    Tooltip,
-    Divider,
+    CircularProgress,
     Dialog,
-    DialogTitle,
+    DialogActions,
     DialogContent,
     DialogContentText,
-    DialogActions,
-    CircularProgress,
-    Alert,
+    DialogTitle,
+    Divider,
+    IconButton,
+    List,
+    ListItem,
+    ListItemSecondaryAction,
+    ListItemText,
+    Stack,
+    TextField,
+    Tooltip,
+    Typography,
+    alpha,
+    useTheme,
 } from '@mui/material';
 import {
     Add as AddIcon,
-    Delete as DeleteIcon,
-    PlayArrow as ActiveIcon,
-    Stop as StopIcon,
-    Edit as EditIcon,
-    FileDownload as ExportIcon,
-    TableChart as ExcelIcon,
     Backup as BackupIcon,
     CloudUpload as ImportIcon,
+    Delete as DeleteIcon,
+    Edit as EditIcon,
+    FileDownload as ExportIcon,
+    FolderOpen as ManageIcon,
+    Stop as StopIcon,
+    TableChart as ExcelIcon,
 } from '@mui/icons-material';
 import { useTestSessionStore, TestSession } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
-import { MeasurementMode } from '@/types';
-import { exportTestSessionToExcel } from '@/utils/exportExcel';
 import { backupTestSession, restoreTestSession } from '@/utils/backupUtils';
+import { exportTestSessionToExcel } from '@/utils/exportExcel';
 
-export function SessionPanel() {
+function formatMoney(value: number) {
+    return `$${value.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+function formatDate(timestamp: number) {
+    return new Date(timestamp).toLocaleString('vi-VN', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+export function SessionPanel({
+    createOpen,
+    onCreateOpenChange,
+}: {
+    createOpen: boolean;
+    onCreateOpenChange: (open: boolean) => void;
+}) {
+    const theme = useTheme();
+    const isDark = theme.palette.mode === 'dark';
     const {
-        measurementMode,
-        setMeasurementMode,
         currentSession,
         sessions,
+        setMeasurementMode,
         createSession,
         endSession,
         renameSession,
         selectSession,
         deleteSession,
     } = useTestSessionStore();
-
     const { factors } = useFactorStore();
 
+    const [manageOpen, setManageOpen] = useState(false);
     const [sessionName, setSessionName] = useState('');
-    const [initialBalance, setInitialBalance] = useState<string>('1000');
-
-    // Duplicate name warning state
-    const [duplicateWarningOpen, setDuplicateWarningOpen] = useState(false);
-    const [duplicateNameInfo, setDuplicateNameInfo] = useState<{ original: string; unique: string } | null>(null);
-
-    // Rename state
-    const [renameDialogOpen, setRenameDialogOpen] = useState(false);
+    const [initialBalance, setInitialBalance] = useState('1000');
+    const [renameOpen, setRenameOpen] = useState(false);
     const [editingSessionId, setEditingSessionId] = useState<string | null>(null);
     const [editingName, setEditingName] = useState('');
-
-    // Delete confirmation state
-    const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    const [deleteOpen, setDeleteOpen] = useState(false);
     const [sessionToDelete, setSessionToDelete] = useState<{ id: string; name: string } | null>(null);
-
-    // Export dialog state
-    const [exportDialogOpen, setExportDialogOpen] = useState(false);
+    const [exportOpen, setExportOpen] = useState(false);
     const [sessionToExport, setSessionToExport] = useState<TestSession | null>(null);
-    const [exporting, setExporting] = useState(false);
+    const [busy, setBusy] = useState(false);
     const [importError, setImportError] = useState<string | null>(null);
     const [importSuccess, setImportSuccess] = useState(false);
     const fileInputRef = useRef<HTMLInputElement>(null);
+    const getFactorName = (id: string) => factors.find((factor) => factor.id === id)?.name || id;
 
-    const getFactorName = (id: string) => {
-        return factors.find(f => f.id === id)?.name || id;
+    React.useEffect(() => {
+        if (createOpen) {
+            setImportError(null);
+            setImportSuccess(false);
+        }
+    }, [createOpen]);
+
+    const handleCreateSession = () => {
+        const name = sessionName.trim() || `Phiên Test ${sessions.length + 1}`;
+        if (sessions.some((session) => session.name === name)) {
+            setImportError(`Tên "${name}" đã tồn tại. Hãy chọn tên khác.`);
+            return;
+        }
+
+        setMeasurementMode('$');
+        createSession(name, parseFloat(initialBalance) || 0);
+        setSessionName('');
+        setInitialBalance('1000');
+        setImportError(null);
+        onCreateOpenChange(false);
+        setManageOpen(false);
     };
 
-    const handleExportClick = (session: TestSession, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setSessionToExport(session);
-        setExportDialogOpen(true);
+    const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
+        const file = event.target.files?.[0];
+        if (!file) return;
+
+        setBusy(true);
         setImportError(null);
-        setImportSuccess(false);
+        try {
+            const result = await restoreTestSession(file);
+            if (!result) {
+                setImportError('Không thể đọc file backup. Vui lòng kiểm tra lại định dạng.');
+                return;
+            }
+
+            const store = useTestSessionStore.getState();
+            if (store.sessions.some((session) => session.id === result.session.id)) {
+                result.session.id = `imported_${Date.now()}`;
+                result.session.name = `${result.session.name} (imported)`;
+            }
+
+            useTestSessionStore.setState({ sessions: [...store.sessions, result.session] });
+            setImportSuccess(true);
+        } catch {
+            setImportError('Có lỗi khi import. Vui lòng thử lại.');
+        } finally {
+            setBusy(false);
+            if (fileInputRef.current) fileInputRef.current.value = '';
+        }
     };
 
     const handleExportExcel = async () => {
         if (!sessionToExport) return;
-        setExporting(true);
+        setBusy(true);
         try {
-            console.log('Starting export for session:', sessionToExport.name);
             await exportTestSessionToExcel(sessionToExport, getFactorName);
-            console.log('Export completed successfully');
-        } catch (error) {
-            console.error('Export error:', error);
-            alert('Lỗi khi xuất Excel: ' + (error as Error).message);
+        } finally {
+            setBusy(false);
         }
-        setExporting(false);
     };
 
     const handleExportBackup = async () => {
         if (!sessionToExport) return;
-        setExporting(true);
+        setBusy(true);
         try {
             await backupTestSession(sessionToExport, factors);
-        } catch (error) {
-            console.error('Backup error:', error);
-        }
-        setExporting(false);
-    };
-
-    const handleImportClick = () => {
-        fileInputRef.current?.click();
-    };
-
-    const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-        const file = e.target.files?.[0];
-        if (!file) return;
-
-        setExporting(true);
-        setImportError(null);
-
-        try {
-            const result = await restoreTestSession(file);
-            if (result) {
-                // Add session to store - need to access store directly
-                const store = useTestSessionStore.getState();
-                // Check if session with same ID already exists
-                const existingSession = store.sessions.find(s => s.id === result.session.id);
-                if (existingSession) {
-                    // Generate new ID to avoid conflicts
-                    result.session.id = `imported_${Date.now()}`;
-                    result.session.name = `${result.session.name} (imported)`;
-                }
-                // Add to sessions
-                useTestSessionStore.setState({
-                    sessions: [...store.sessions, result.session],
-                });
-                setImportSuccess(true);
-                setImportError(null);
-            } else {
-                setImportError('Không thể đọc file backup. Vui lòng kiểm tra định dạng file.');
-            }
-        } catch (error) {
-            setImportError('Có lỗi xảy ra khi import. Vui lòng thử lại.');
-        }
-
-        setExporting(false);
-        // Reset file input
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
+        } finally {
+            setBusy(false);
         }
     };
 
-    const handleDeleteClick = (id: string, name: string, e: React.MouseEvent) => {
-        e.stopPropagation();
-        setSessionToDelete({ id, name });
-        setDeleteDialogOpen(true);
+    const openRename = (session: TestSession) => {
+        setEditingSessionId(session.id);
+        setEditingName(session.name);
+        setRenameOpen(true);
     };
 
-    const handleDeleteConfirm = () => {
-        if (sessionToDelete) {
-            deleteSession(sessionToDelete.id);
-        }
-        setDeleteDialogOpen(false);
-        setSessionToDelete(null);
-    };
-
-    const handleDeleteCancel = () => {
-        setDeleteDialogOpen(false);
-        setSessionToDelete(null);
-    };
-
-    const handleRenameClick = (id: string, currentName: string) => {
-        setEditingSessionId(id);
-        setEditingName(currentName);
-        setRenameDialogOpen(true);
-    };
-
-    const handleRenameSubmit = () => {
+    const submitRename = () => {
         if (editingSessionId && editingName.trim()) {
             renameSession(editingSessionId, editingName.trim());
-            setRenameDialogOpen(false);
+            setRenameOpen(false);
             setEditingSessionId(null);
             setEditingName('');
         }
     };
 
-    const handleCreateSession = () => {
-        // Generate unique name based on existing sessions count + 1
-        const nextNumber = sessions.length + 1;
-        const name = sessionName.trim() || `Phiên Test ${nextNumber}`;
-
-        // Check if session name already exists
-        const existingSession = sessions.find(s => s.name === name);
-        if (existingSession) {
-            // Show warning dialog - do NOT create session
-            setDuplicateNameInfo({ original: name, unique: '' });
-            setDuplicateWarningOpen(true);
-            // Keep the session name so user can edit it
-            return;
-        }
-
-        createSession(name, parseFloat(initialBalance) || 0);
-        setSessionName('');
-        setInitialBalance('1000');  // Reset to default
+    const openDelete = (session: TestSession) => {
+        setSessionToDelete({ id: session.id, name: session.name });
+        setDeleteOpen(true);
     };
 
-    const formatDate = (timestamp: number) => {
-        return new Date(timestamp).toLocaleString('vi-VN', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-        });
+    const confirmDelete = () => {
+        if (sessionToDelete) deleteSession(sessionToDelete.id);
+        setDeleteOpen(false);
+        setSessionToDelete(null);
     };
+
+    const cardBorder = isDark ? 'rgba(148,163,184,0.18)' : 'rgba(15,23,42,0.12)';
 
     return (
-        <Box
-            sx={{
-                p: 2.5,
-            }}
-        >
-            {/* Current Session */}
-            {currentSession && (
-                <Box sx={{ mb: 2.5 }}>
-                    <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                        Phiên hiện tại
-                    </Typography>
-                    <Box
-                        sx={{
-                            p: 1.5,
-                            borderRadius: 1.5,
-                            bgcolor: 'primary.50',
-                            border: '1px solid',
-                            borderColor: 'primary.main',
-                        }}
-                    >
-                        <Stack direction="row" justifyContent="space-between" alignItems="flex-start">
-                            <Box>
-                                <Typography variant="body1" fontWeight={600} color="primary.main">
-                                    {currentSession.name}
-                                </Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Tạo lúc: {formatDate(currentSession.startTime)}
-                                </Typography>
-                                <Box sx={{ mt: 0.5 }}>
-                                    <Chip
-                                        label={`Mode: ${currentSession.measurementMode}`}
-                                        size="small"
-                                        color="primary"
-                                    />
-                                </Box>
-                            </Box>
-                            <Button
-                                variant="outlined"
-                                color="error"
+        <Box sx={{ p: 1.75 }}>
+            <Box
+                sx={{
+                    p: 1.75,
+                    borderRadius: 2,
+                    border: '1px solid',
+                    borderColor: currentSession ? alpha(theme.palette.primary.main, 0.65) : cardBorder,
+                    bgcolor: currentSession ? alpha(theme.palette.primary.main, isDark ? 0.08 : 0.05) : alpha(theme.palette.text.primary, 0.025),
+                }}
+            >
+                <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1.5}>
+                    <Box sx={{ minWidth: 0 }}>
+                        <Typography sx={{ fontSize: '0.72rem', color: 'text.secondary', fontWeight: 700, textTransform: 'uppercase' }}>
+                            Current Session
+                        </Typography>
+                        <Typography sx={{ mt: 0.35, fontWeight: 800, color: currentSession ? 'primary.main' : 'text.primary' }} noWrap>
+                            {currentSession?.name || 'Chưa có phiên'}
+                        </Typography>
+                        <Stack direction="row" spacing={0.75} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+                            <Chip
                                 size="small"
-                                startIcon={<StopIcon />}
-                                onClick={endSession}
-                                sx={{ minWidth: 100 }}
-                            >
-                                Kết thúc
-                            </Button>
+                                label={currentSession ? formatMoney(currentSession.initialBalance) : 'No balance'}
+                                sx={{ height: 22, fontWeight: 700 }}
+                            />
+                            <Chip
+                                size="small"
+                                label={`${currentSession?.trades.length || 0} trades`}
+                                sx={{ height: 22, fontWeight: 700 }}
+                            />
                         </Stack>
                     </Box>
-                </Box>
-            )}
 
-            {/* Create New Session */}
-            <Box sx={{ mb: 2.5 }}>
-                <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-                    Tạo phiên mới
-                </Typography>
-
-                <TextField
-                    fullWidth
-                    size="small"
-                    placeholder="Tên phiên (tùy chọn)"
-                    value={sessionName}
-                    onChange={(e) => setSessionName(e.target.value)}
-                    disabled={!!currentSession}
-                    sx={{ mb: 2 }}
-                />
-
-                <Typography variant="caption" color="text.secondary" sx={{ mb: 1, display: 'block' }}>
-                    Chọn mode trước khi tạo:
-                </Typography>
-                <ToggleButtonGroup
-                    value={measurementMode}
-                    exclusive
-                    onChange={(_, newMode) => newMode && setMeasurementMode(newMode)}
-                    disabled={!!currentSession}
-                    fullWidth
-                    size="small"
-                    sx={{ mb: 1.5 }}
-                >
-                    <ToggleButton value="RR" sx={{ fontWeight: 600 }}>
-                        RR
-                    </ToggleButton>
-                    <ToggleButton value="$" sx={{ fontWeight: 600 }}>
-                        $
-                    </ToggleButton>
-                    <ToggleButton value="%" sx={{ fontWeight: 600 }}>
-                        %
-                    </ToggleButton>
-                </ToggleButtonGroup>
-
-                {/* Initial Balance Input */}
-                <TextField
-                    fullWidth
-                    size="small"
-                    label="Số dư ban đầu"
-                    type="number"
-                    value={initialBalance}
-                    onChange={(e) => setInitialBalance(e.target.value)}
-                    disabled={!!currentSession}
-                    placeholder="VD: 1000"
-                    inputProps={{ min: 0, step: 100 }}
-                    sx={{ mb: 1.5 }}
-                    InputProps={{
-                        startAdornment: measurementMode === '$' ? (
-                            <Typography sx={{ mr: 1, color: 'text.secondary' }}>$</Typography>
-                        ) : undefined,
-                    }}
-                    helperText="Số dư ban đầu để tính equity curve"
-                />
-
-                <Button
-                    variant="contained"
-                    fullWidth
-                    startIcon={<AddIcon />}
-                    onClick={handleCreateSession}
-                    color="success"
-                    disabled={!!currentSession}
-                >
-                    + Tạo phiên test
-                </Button>
-            </Box>
-
-            <Divider sx={{ my: 2 }} />
-
-            {/* Sessions List */}
-            <Box>
-                <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
-                    <Typography variant="subtitle2" color="text.secondary">
-                        Danh sách phiên: {sessions.length} phiên
-                    </Typography>
-                    <Tooltip title="Nhập dữ liệu từ ZIP">
-                        <IconButton
-                            size="small"
-                            onClick={handleImportClick}
-                            disabled={exporting}
-                            color="primary"
-                        >
-                            <ImportIcon fontSize="small" />
-                        </IconButton>
-                    </Tooltip>
+                    <Stack direction="row" spacing={0.75}>
+                        <Tooltip title="Quản lý phiên">
+                            <IconButton
+                                size="small"
+                                onClick={() => setManageOpen(true)}
+                                sx={{ border: '1px solid', borderColor: 'divider' }}
+                            >
+                                <ManageIcon fontSize="small" />
+                            </IconButton>
+                        </Tooltip>
+                        {currentSession && (
+                            <Tooltip title="Kết thúc phiên">
+                                <IconButton
+                                    size="small"
+                                    color="error"
+                                    onClick={endSession}
+                                    sx={{ border: '1px solid', borderColor: alpha(theme.palette.error.main, 0.35) }}
+                                >
+                                    <StopIcon fontSize="small" />
+                                </IconButton>
+                            </Tooltip>
+                        )}
+                    </Stack>
                 </Stack>
 
-                <input
-                    type="file"
-                    ref={fileInputRef}
-                    onChange={handleFileChange}
-                    accept=".zip"
-                    style={{ display: 'none' }}
-                />
-
-                {importError && (
-                    <Alert severity="error" sx={{ mb: 1 }} onClose={() => setImportError(null)}>{importError}</Alert>
-                )}
-                {importSuccess && (
-                    <Alert severity="success" sx={{ mb: 1 }} onClose={() => setImportSuccess(false)}>Đã import thành công!</Alert>
-                )}
-
-                {sessions.length === 0 ? (
-                    <Typography variant="body2" color="text.secondary" sx={{ textAlign: 'center', py: 2 }}>
-                        Chưa có phiên nào
+                {currentSession && (
+                    <Typography sx={{ mt: 1.1, fontSize: '0.75rem', color: 'text.secondary' }}>
+                        Started {formatDate(currentSession.startTime)}
                     </Typography>
-                ) : (
-                    <List sx={{ maxHeight: 200, overflow: 'auto' }} dense>
-                        {sessions.map((session) => {
-                            const isActive = session.id === currentSession?.id;
-                            const isEnded = !!session.endTime;
-
-                            return (
-                                <ListItem
-                                    key={session.id}
-                                    sx={{
-                                        borderRadius: 1,
-                                        mb: 0.5,
-                                        bgcolor: isActive ? 'primary.50' : isEnded ? 'grey.100' : 'grey.50',
-                                        border: '1px solid',
-                                        borderColor: isActive ? 'primary.main' : 'transparent',
-                                        cursor: isEnded && !isActive ? 'default' : 'pointer',
-                                        opacity: isEnded && !isActive ? 0.7 : 1,
-                                    }}
-                                    onClick={() => !isEnded && selectSession(session.id)}
-                                >
-                                    {isActive && (
-                                        <ActiveIcon sx={{ color: 'primary.main', mr: 1, fontSize: 16 }} />
-                                    )}
-                                    <ListItemText
-                                        primary={
-                                            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
-                                                <Typography variant="body2" fontWeight={500}>
-                                                    {session.name}
-                                                </Typography>
-                                                <Chip
-                                                    label={session.measurementMode}
-                                                    size="small"
-                                                    sx={{ fontSize: '0.65rem', height: 18 }}
-                                                />
-                                                {isEnded && !isActive && (
-                                                    <Chip
-                                                        label="Đã kết thúc"
-                                                        size="small"
-                                                        color="default"
-                                                        sx={{ fontSize: '0.6rem', height: 16 }}
-                                                    />
-                                                )}
-                                            </Box>
-                                        }
-                                        secondary={
-                                            <Typography variant="caption" color="text.secondary">
-                                                {formatDate(session.startTime)} • {session.trades.length} trades
-                                            </Typography>
-                                        }
-                                    />
-                                    <ListItemSecondaryAction>
-                                        <Tooltip title="Xuất/Nhập">
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => handleExportClick(session, e)}
-                                                sx={{ color: 'primary.main', mr: 0.5 }}
-                                            >
-                                                <ExportIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Đổi tên">
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => {
-                                                    e.stopPropagation();
-                                                    handleRenameClick(session.id, session.name);
-                                                }}
-                                                sx={{ mr: 0.5 }}
-                                            >
-                                                <EditIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                        <Tooltip title="Xóa">
-                                            <IconButton
-                                                size="small"
-                                                onClick={(e) => handleDeleteClick(session.id, session.name, e)}
-                                                sx={{ color: 'error.main' }}
-                                            >
-                                                <DeleteIcon fontSize="small" />
-                                            </IconButton>
-                                        </Tooltip>
-                                    </ListItemSecondaryAction>
-                                </ListItem>
-                            );
-                        })}
-                    </List>
                 )}
             </Box>
 
-            {/* Rename Dialog */}
-            <Dialog open={renameDialogOpen} onClose={() => setRenameDialogOpen(false)}>
+            <Dialog open={createOpen} onClose={() => onCreateOpenChange(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Tạo mục mới</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={1.5} sx={{ pt: 0.75 }}>
+                        <TextField
+                            autoFocus
+                            size="small"
+                            label="Tên mục mới"
+                            placeholder={`Phiên Test ${sessions.length + 1}`}
+                            value={sessionName}
+                            onChange={(event) => setSessionName(event.target.value)}
+                            fullWidth
+                        />
+                        <TextField
+                            size="small"
+                            label="Số dư ($)"
+                            type="number"
+                            value={initialBalance}
+                            onChange={(event) => setInitialBalance(event.target.value)}
+                            fullWidth
+                            InputProps={{
+                                startAdornment: <Typography sx={{ mr: 1, color: 'text.secondary' }}>$</Typography>,
+                            }}
+                        />
+                        {importError && <Alert severity="error" onClose={() => setImportError(null)}>{importError}</Alert>}
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => onCreateOpenChange(false)}>Hủy</Button>
+                    <Button variant="contained" startIcon={<AddIcon />} onClick={handleCreateSession}>
+                        Tạo
+                    </Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={manageOpen} onClose={() => setManageOpen(false)} maxWidth="sm" fullWidth>
+                <DialogTitle>Quản lý phiên test</DialogTitle>
+                <DialogContent>
+                    <Stack spacing={2.25} sx={{ pt: 0.5 }}>
+                        <Box
+                            sx={{
+                                p: 2,
+                                borderRadius: 2,
+                                border: '1px solid',
+                                borderColor: 'divider',
+                                bgcolor: alpha(theme.palette.text.primary, 0.025),
+                            }}
+                        >
+                            <Typography sx={{ mb: 1.5, fontWeight: 800 }}>Tạo mục mới</Typography>
+                            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.25}>
+                                <TextField
+                                    size="small"
+                                    label="Tên mục mới"
+                                    placeholder={`Phiên Test ${sessions.length + 1}`}
+                                    value={sessionName}
+                                    onChange={(event) => setSessionName(event.target.value)}
+                                    fullWidth
+                                />
+                                <TextField
+                                    size="small"
+                                    label="Số dư ($)"
+                                    type="number"
+                                    value={initialBalance}
+                                    onChange={(event) => setInitialBalance(event.target.value)}
+                                    sx={{ minWidth: 150 }}
+                                    InputProps={{
+                                        startAdornment: <Typography sx={{ mr: 1, color: 'text.secondary' }}>$</Typography>,
+                                    }}
+                                />
+                            </Stack>
+                            <Button
+                                sx={{ mt: 1.5 }}
+                                variant="contained"
+                                startIcon={<AddIcon />}
+                                onClick={handleCreateSession}
+                                fullWidth
+                            >
+                                Tạo mục
+                            </Button>
+                        </Box>
+
+                        <Stack direction="row" alignItems="center" justifyContent="space-between">
+                            <Typography sx={{ fontWeight: 800 }}>Danh sách phiên</Typography>
+                            <Stack direction="row" spacing={0.75}>
+                                <input
+                                    ref={fileInputRef}
+                                    type="file"
+                                    accept=".zip"
+                                    onChange={handleFileChange}
+                                    style={{ display: 'none' }}
+                                />
+                                <Tooltip title="Import ZIP">
+                                    <IconButton size="small" onClick={() => fileInputRef.current?.click()} disabled={busy}>
+                                        <ImportIcon fontSize="small" />
+                                    </IconButton>
+                                </Tooltip>
+                            </Stack>
+                        </Stack>
+
+                        {importError && <Alert severity="error" onClose={() => setImportError(null)}>{importError}</Alert>}
+                        {importSuccess && <Alert severity="success" onClose={() => setImportSuccess(false)}>Đã import thành công.</Alert>}
+
+                        <List sx={{ maxHeight: 340, overflow: 'auto', border: '1px solid', borderColor: 'divider', borderRadius: 2 }}>
+                            {sessions.length === 0 ? (
+                                <Typography sx={{ p: 2, textAlign: 'center', color: 'text.secondary' }}>Chưa có phiên nào</Typography>
+                            ) : sessions.map((session) => {
+                                const isActive = session.id === currentSession?.id;
+                                const isEnded = !!session.endTime;
+                                return (
+                                    <ListItem
+                                        key={session.id}
+                                        sx={{
+                                            borderBottom: '1px solid',
+                                            borderColor: 'divider',
+                                            bgcolor: isActive ? alpha(theme.palette.primary.main, 0.08) : 'transparent',
+                                            cursor: !isEnded ? 'pointer' : 'default',
+                                        }}
+                                        onClick={() => {
+                                            if (!isEnded) {
+                                                selectSession(session.id);
+                                                setManageOpen(false);
+                                            }
+                                        }}
+                                    >
+                                        <ListItemText
+                                            primary={
+                                                <Stack direction="row" spacing={0.75} alignItems="center">
+                                                    <Typography sx={{ fontWeight: 800 }}>{session.name}</Typography>
+                                                    {isActive && <Chip size="small" label="Active" color="primary" sx={{ height: 18 }} />}
+                                                    {isEnded && <Chip size="small" label="Ended" sx={{ height: 18 }} />}
+                                                </Stack>
+                                            }
+                                            secondary={`${formatDate(session.startTime)} • ${session.trades.length} trades • ${formatMoney(session.initialBalance)}`}
+                                        />
+                                        <ListItemSecondaryAction>
+                                            <Tooltip title="Xuất">
+                                                <IconButton
+                                                    size="small"
+                                                    onClick={(event) => {
+                                                        event.stopPropagation();
+                                                        setSessionToExport(session);
+                                                        setExportOpen(true);
+                                                    }}
+                                                >
+                                                    <ExportIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="Đổi tên">
+                                                <IconButton size="small" onClick={(event) => { event.stopPropagation(); openRename(session); }}>
+                                                    <EditIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                            <Tooltip title="Xóa">
+                                                <IconButton size="small" color="error" onClick={(event) => { event.stopPropagation(); openDelete(session); }}>
+                                                    <DeleteIcon fontSize="small" />
+                                                </IconButton>
+                                            </Tooltip>
+                                        </ListItemSecondaryAction>
+                                    </ListItem>
+                                );
+                            })}
+                        </List>
+                    </Stack>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setManageOpen(false)}>Đóng</Button>
+                </DialogActions>
+            </Dialog>
+
+            <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth>
                 <DialogTitle>Đổi tên phiên</DialogTitle>
                 <DialogContent>
                     <TextField
                         autoFocus
+                        fullWidth
                         margin="dense"
                         label="Tên phiên mới"
-                        fullWidth
-                        variant="outlined"
                         value={editingName}
-                        onChange={(e) => setEditingName(e.target.value)}
+                        onChange={(event) => setEditingName(event.target.value)}
                     />
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setRenameDialogOpen(false)}>Hủy</Button>
-                    <Button onClick={handleRenameSubmit} variant="contained">Lưu</Button>
+                    <Button onClick={() => setRenameOpen(false)}>Hủy</Button>
+                    <Button variant="contained" onClick={submitRename}>Lưu</Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Delete Confirmation Dialog */}
-            <Dialog
-                open={deleteDialogOpen}
-                onClose={handleDeleteCancel}
-                aria-labelledby="delete-session-dialog-title"
-                aria-describedby="delete-session-dialog-description"
-            >
-                <DialogTitle id="delete-session-dialog-title">
-                    Xác nhận xóa Session
-                </DialogTitle>
+            <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
+                <DialogTitle>Xóa phiên</DialogTitle>
                 <DialogContent>
-                    <DialogContentText id="delete-session-dialog-description">
-                        Bạn có chắc chắn muốn xóa phiên "<strong>{sessionToDelete?.name}</strong>"?
+                    <DialogContentText>
+                        Bạn có chắc muốn xóa phiên "{sessionToDelete?.name}"?
                     </DialogContentText>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={handleDeleteCancel} color="inherit">
-                        Hủy
-                    </Button>
-                    <Button onClick={handleDeleteConfirm} color="error" variant="contained" autoFocus>
-                        Xóa
-                    </Button>
+                    <Button onClick={() => setDeleteOpen(false)}>Hủy</Button>
+                    <Button color="error" variant="contained" onClick={confirmDelete}>Xóa</Button>
                 </DialogActions>
             </Dialog>
 
-            {/* Export Dialog */}
-            <Dialog
-                open={exportDialogOpen}
-                onClose={() => setExportDialogOpen(false)}
-                maxWidth="xs"
-                fullWidth
-            >
+            <Dialog open={exportOpen} onClose={() => setExportOpen(false)} maxWidth="xs" fullWidth>
                 <DialogTitle>
-                    Xuất/Nhập dữ liệu
+                    Xuất dữ liệu
                     {sessionToExport && (
-                        <Typography variant="body2" color="text.secondary">
-                            {sessionToExport.name}
-                        </Typography>
+                        <Typography sx={{ fontSize: '0.82rem', color: 'text.secondary' }}>{sessionToExport.name}</Typography>
                     )}
                 </DialogTitle>
                 <DialogContent>
-                    <Stack spacing={2} sx={{ mt: 1 }}>
-                        {/* Export Excel */}
+                    <Stack spacing={1.25} sx={{ pt: 0.5 }}>
                         <Button
                             variant="outlined"
-                            startIcon={exporting ? <CircularProgress size={20} /> : <ExcelIcon />}
+                            startIcon={busy ? <CircularProgress size={18} /> : <ExcelIcon />}
                             onClick={handleExportExcel}
-                            disabled={exporting}
+                            disabled={busy}
                             fullWidth
-                            sx={{ justifyContent: 'flex-start', py: 1.5 }}
                         >
-                            <Box sx={{ textAlign: 'left' }}>
-                                <Typography variant="body2" fontWeight={600}>Xuất Excel</Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Báo cáo đẹp để xem/in
-                                </Typography>
-                            </Box>
+                            Xuất Excel
                         </Button>
-
-                        {/* Export Backup */}
                         <Button
                             variant="outlined"
-                            startIcon={exporting ? <CircularProgress size={20} /> : <BackupIcon />}
+                            startIcon={busy ? <CircularProgress size={18} /> : <BackupIcon />}
                             onClick={handleExportBackup}
-                            disabled={exporting}
+                            disabled={busy}
                             fullWidth
-                            sx={{ justifyContent: 'flex-start', py: 1.5 }}
                         >
-                            <Box sx={{ textAlign: 'left' }}>
-                                <Typography variant="body2" fontWeight={600}>Sao lưu (ZIP)</Typography>
-                                <Typography variant="caption" color="text.secondary">
-                                    Lưu trữ & khôi phục sau này
-                                </Typography>
-                            </Box>
+                            Sao lưu ZIP
                         </Button>
                     </Stack>
                 </DialogContent>
                 <DialogActions>
-                    <Button onClick={() => setExportDialogOpen(false)}>Đóng</Button>
+                    <Button onClick={() => setExportOpen(false)}>Đóng</Button>
                 </DialogActions>
             </Dialog>
-
-            {/* Duplicate Name Warning Dialog */}
-            <Dialog
-                open={duplicateWarningOpen}
-                onClose={() => setDuplicateWarningOpen(false)}
-                aria-labelledby="duplicate-warning-dialog-title"
-            >
-                <DialogTitle id="duplicate-warning-dialog-title" sx={{ color: 'warning.main' }}>
-                    ⚠️ Tên phiên bị trùng!
-                </DialogTitle>
-                <DialogContent>
-                    <DialogContentText>
-                        Tên "<strong>{duplicateNameInfo?.original}</strong>" đã tồn tại!
-                        <br /><br />
-                        Vui lòng nhập tên khác cho phiên mới.
-                    </DialogContentText>
-                </DialogContent>
-                <DialogActions>
-                    <Button onClick={() => setDuplicateWarningOpen(false)} variant="contained" autoFocus>
-                        OK
-                    </Button>
-                </DialogActions>
-            </Dialog>
-        </Box >
+        </Box>
     );
 }
 

@@ -3,27 +3,42 @@
 import React, { useContext } from 'react';
 import { useSession, signIn, signOut } from 'next-auth/react';
 import {
-    Box,
-    Typography,
-    IconButton,
-    Tooltip,
-    Stack,
-    Button,
     Avatar,
-    useTheme,
+    Box,
+    IconButton,
+    Stack,
+    Tooltip,
 } from '@mui/material';
 import {
     DarkMode as DarkModeIcon,
+    KeyboardArrowDown as KeyboardArrowDownIcon,
     LightMode as LightModeIcon,
-    TrendingUp as TrendingUpIcon,
-    ShowChart as ChartIcon,
+    Login as LoginIcon,
+    Logout as LogoutIcon,
+    ViewSidebarOutlined as WorkspaceIcon,
 } from '@mui/icons-material';
 import { ThemeContext } from './ThemeRegistry';
 
-export function Header() {
+interface HeaderProps {
+    sidebarOpen: boolean;
+    onToggleSidebar: () => void;
+}
+
+export function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
     const { isDarkMode, toggleTheme } = useContext(ThemeContext);
     const { data: session } = useSession();
-    const theme = useTheme();
+    const sidebarTitle = sidebarOpen ? 'Ẩn sidebar' : 'Mở sidebar';
+
+    const iconButtonSx = {
+        width: 30,
+        height: 30,
+        borderRadius: '8px',
+        color: isDarkMode ? 'rgba(245, 245, 245, 0.86)' : 'rgba(24, 24, 27, 0.82)',
+        bgcolor: 'transparent',
+        '&:hover': {
+            bgcolor: isDarkMode ? 'rgba(255, 255, 255, 0.08)' : 'rgba(24, 24, 27, 0.06)',
+        },
+    };
 
     return (
         <Box
@@ -33,145 +48,112 @@ export function Header() {
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                px: { xs: 2, sm: 3 },
-                py: 1.5,
+                px: { xs: 1.5, sm: 2 },
+                py: 1,
                 position: 'sticky',
                 top: 0,
                 zIndex: 1100,
-                minHeight: 60,
+                minHeight: 54,
             }}
         >
-            {/* Logo & Title */}
-            <Stack direction="row" alignItems="center" spacing={1.5}>
-                {/* Logo icon with gradient glow */}
-                <Box
-                    sx={{
-                        width: 36,
-                        height: 36,
-                        borderRadius: 2,
-                        background: 'linear-gradient(135deg, #2383e2 0%, #8b5cf6 100%)',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        boxShadow: isDarkMode
-                            ? '0 0 20px rgba(35, 131, 226, 0.4)'
-                            : '0 4px 12px rgba(35, 131, 226, 0.3)',
-                        transition: 'all 0.3s ease',
-                        '&:hover': {
-                            transform: 'rotate(-5deg) scale(1.05)',
-                            boxShadow: isDarkMode
-                                ? '0 0 28px rgba(35, 131, 226, 0.6)'
-                                : '0 6px 20px rgba(35, 131, 226, 0.45)',
-                        },
-                        cursor: 'default',
-                    }}
-                >
-                    <ChartIcon sx={{ color: 'white', fontSize: 20 }} />
-                </Box>
-
-                <Box>
-                    <Typography
-                        variant="h6"
-                        sx={{
-                            fontWeight: 800,
-                            fontSize: '1rem',
-                            background: isDarkMode
-                                ? 'linear-gradient(135deg, #f1f5f9 0%, #94a3b8 100%)'
-                                : 'linear-gradient(135deg, #0f172a 0%, #475569 100%)',
-                            WebkitBackgroundClip: 'text',
-                            WebkitTextFillColor: 'transparent',
-                            backgroundClip: 'text',
-                            letterSpacing: '-0.02em',
-                            lineHeight: 1.2,
-                        }}
-                    >
-                        Trade Tracker
-                    </Typography>
-                    <Typography
-                        variant="caption"
-                        sx={{
-                            color: 'text.secondary',
-                            fontSize: '0.68rem',
-                            letterSpacing: '0.08em',
-                            textTransform: 'uppercase',
-                            fontWeight: 600,
-                        }}
-                    >
-                        Journal & Analytics
-                    </Typography>
-                </Box>
-            </Stack>
-
-            {/* Right: Controls */}
             <Stack direction="row" alignItems="center" spacing={1}>
-                {/* Theme Toggle */}
-                <Tooltip title={isDarkMode ? 'Chuyển Light Mode' : 'Chuyển Dark Mode'} arrow>
-                    <IconButton
-                        onClick={toggleTheme}
-                        size="small"
+                <Tooltip title="Trade Tracker" arrow>
+                    <Box
+                        component="img"
+                        src="/brand-mark.svg"
+                        alt="Trade Tracker"
+                        aria-label="Trade Tracker"
                         sx={{
-                            width: 36,
-                            height: 36,
+                            width: 28,
+                            height: 28,
+                            borderRadius: '8px',
+                            display: 'block',
+                            objectFit: 'contain',
+                            boxShadow: isDarkMode
+                                ? '0 4px 14px rgba(0, 0, 0, 0.28)'
+                                : '0 4px 14px rgba(21, 23, 25, 0.18)',
+                        }}
+                    />
+                </Tooltip>
+
+                <Tooltip title={sidebarTitle} arrow>
+                    <Box
+                        component="button"
+                        type="button"
+                        aria-label={sidebarTitle}
+                        onClick={onToggleSidebar}
+                        sx={{
+                            height: 34,
+                            minWidth: 58,
+                            px: 0.85,
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: 0.45,
+                            borderRadius: '12px',
                             border: '1px solid',
-                            borderColor: 'divider',
-                            bgcolor: isDarkMode
-                                ? 'rgba(241, 245, 249, 0.05)'
-                                : 'rgba(15, 23, 42, 0.04)',
+                            borderColor: 'transparent',
+                            color: isDarkMode ? 'rgba(245, 245, 245, 0.82)' : 'rgba(24, 24, 27, 0.78)',
+                            bgcolor: 'transparent',
+                            cursor: 'pointer',
                             '&:hover': {
-                                bgcolor: isDarkMode
-                                    ? 'rgba(241, 245, 249, 0.1)'
-                                    : 'rgba(15, 23, 42, 0.08)',
-                                borderColor: isDarkMode
-                                    ? 'rgba(241, 245, 249, 0.2)'
-                                    : 'rgba(15, 23, 42, 0.15)',
+                                borderColor: isDarkMode ? 'rgba(245, 245, 245, 0.14)' : 'rgba(24, 24, 27, 0.12)',
+                                bgcolor: isDarkMode ? 'rgba(245, 245, 245, 0.07)' : 'rgba(24, 24, 27, 0.05)',
+                                color: isDarkMode ? '#f5f5f5' : '#18181b',
+                            },
+                            '&:focus-visible': {
+                                borderColor: isDarkMode ? 'rgba(245, 245, 245, 0.18)' : 'rgba(24, 24, 27, 0.16)',
+                                bgcolor: isDarkMode ? 'rgba(245, 245, 245, 0.08)' : 'rgba(24, 24, 27, 0.06)',
                             },
                         }}
                     >
+                        <WorkspaceIcon sx={{ fontSize: 17 }} />
+                        <KeyboardArrowDownIcon
+                            sx={{
+                                fontSize: 16,
+                                transform: sidebarOpen ? 'rotate(0deg)' : 'rotate(-90deg)',
+                            }}
+                        />
+                    </Box>
+                </Tooltip>
+            </Stack>
+
+            <Stack direction="row" alignItems="center" spacing={0.5}>
+                <Tooltip title={isDarkMode ? 'Light mode' : 'Dark mode'} arrow>
+                    <IconButton onClick={toggleTheme} size="small" sx={iconButtonSx}>
                         {isDarkMode ? (
                             <LightModeIcon
                                 sx={{
-                                    fontSize: 18,
+                                    fontSize: 17,
                                     color: '#fbbf24',
                                     filter: 'drop-shadow(0 0 4px rgba(251,191,36,0.6))',
                                 }}
                             />
                         ) : (
-                            <DarkModeIcon sx={{ fontSize: 18, color: 'text.secondary' }} />
+                            <DarkModeIcon sx={{ fontSize: 17 }} />
                         )}
                     </IconButton>
                 </Tooltip>
 
                 {session ? (
-                    <Stack direction="row" alignItems="center" spacing={1} sx={{ ml: 2 }}>
-                        <Avatar 
-                            src={session.user?.image || undefined} 
-                            alt={session.user?.name || 'User'} 
-                            sx={{ width: 32, height: 32 }} 
+                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ ml: 0.5 }}>
+                        <Avatar
+                            src={session.user?.image || undefined}
+                            alt={session.user?.name || 'User'}
+                            sx={{ width: 28, height: 28 }}
                         />
-                        <Button 
-                            variant="outlined" 
-                            size="small" 
-                            color="error"
-                            onClick={() => signOut()}
-                            sx={{ textTransform: 'none', borderRadius: 2 }}
-                        >
-                            Đăng xuất
-                        </Button>
+                        <Tooltip title="Sign out" arrow>
+                            <IconButton onClick={() => signOut()} size="small" sx={iconButtonSx}>
+                                <LogoutIcon sx={{ fontSize: 17 }} />
+                            </IconButton>
+                        </Tooltip>
                     </Stack>
                 ) : (
-                    <Button 
-                        variant="contained" 
-                        size="small" 
-                        onClick={() => signIn('google')}
-                        sx={{ 
-                            ml: 2, 
-                            textTransform: 'none', 
-                            borderRadius: 2,
-                            background: 'linear-gradient(135deg, #2383e2 0%, #8b5cf6 100%)',
-                        }}
-                    >
-                        Đăng nhập
-                    </Button>
+                    <Tooltip title="Sign in" arrow>
+                        <IconButton onClick={() => signIn('google')} size="small" sx={{ ...iconButtonSx, ml: 0.5 }}>
+                            <LoginIcon sx={{ fontSize: 17 }} />
+                        </IconButton>
+                    </Tooltip>
                 )}
             </Stack>
         </Box>

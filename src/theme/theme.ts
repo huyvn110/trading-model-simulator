@@ -25,16 +25,16 @@ const colors = {
 
     // Dark "Midnight" palette
     midnight: {
-        900: '#0a0e1a',
-        800: '#0f1629',
-        700: '#131d35',
-        600: '#1a2540',
-        500: '#1e2d4d',
-        400: '#243358',
-        300: '#2d3f6b',
-        200: '#3d5080',
-        100: '#6b7ea8',
-        50: '#94a3b8',
+        900: '#191919',
+        800: '#202020',
+        700: '#252525',
+        600: '#2b2b2b',
+        500: '#333333',
+        400: '#404040',
+        300: '#525252',
+        200: '#737373',
+        100: '#a3a3a3',
+        50: '#d4d4d4',
     },
 };
 
@@ -109,15 +109,17 @@ const baseOptions: ThemeOptions = {
         caption: { fontSize: '0.75rem', letterSpacing: '0.01em' },
         button: { textTransform: 'none', fontWeight: 600, letterSpacing: '0.01em' },
     },
-    shape: { borderRadius: 10 },
+    shape: { borderRadius: 8 },
     components: {
         MuiButton: {
             styleOverrides: {
                 root: {
-                    borderRadius: 10,
-                    padding: '8px 16px',
+                    borderRadius: 8,
+                    padding: '6px 10px',
+                    minHeight: 32,
                     boxShadow: 'none',
                     transition: 'all 0.2s ease',
+                    fontSize: '0.82rem',
                     '&:hover': { boxShadow: 'none', transform: 'translateY(-1px)' },
                     '&:active': { transform: 'translateY(0px)' },
                 },
@@ -148,7 +150,8 @@ const baseOptions: ThemeOptions = {
         MuiIconButton: {
             styleOverrides: {
                 root: {
-                    borderRadius: 10,
+                    borderRadius: 8,
+                    padding: 5,
                     transition: 'all 0.2s ease',
                     '&:hover': {
                         backgroundColor: 'rgba(15, 23, 42, 0.07)',
@@ -250,9 +253,9 @@ const baseOptions: ThemeOptions = {
                 root: {
                     borderRadius: 8,
                     fontWeight: 600,
-                    fontSize: '0.875rem',
+                    fontSize: '0.8rem',
                     textTransform: 'none',
-                    minHeight: 40,
+                    minHeight: 34,
                     transition: 'all 0.2s ease',
                 },
             },
@@ -341,10 +344,12 @@ export const darkTheme = createTheme({
         MuiButton: {
             styleOverrides: {
                 root: {
-                    borderRadius: 10,
-                    padding: '8px 16px',
+                    borderRadius: 8,
+                    padding: '6px 10px',
+                    minHeight: 32,
                     boxShadow: 'none',
                     transition: 'all 0.2s ease',
+                    fontSize: '0.82rem',
                     '&:hover': { boxShadow: 'none', transform: 'translateY(-1px)' },
                     '&:active': { transform: 'translateY(0px)' },
                 },
@@ -375,7 +380,8 @@ export const darkTheme = createTheme({
         MuiIconButton: {
             styleOverrides: {
                 root: {
-                    borderRadius: 10,
+                    borderRadius: 8,
+                    padding: 5,
                     color: 'rgba(148, 163, 184, 0.9)',
                     transition: 'all 0.2s ease',
                     '&:hover': {

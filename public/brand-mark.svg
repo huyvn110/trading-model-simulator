@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-labelledby="brand-title brand-description">
+  <title id="brand-title">Trade Tracker</title>
+  <desc id="brand-description">Ba nến tăng cùng mũi tên xu hướng đi lên</desc>
+  <rect width="100" height="100" rx="22" fill="#151719"/>
+  <rect x="1" y="1" width="98" height="98" rx="21" fill="none" stroke="#2C2E31" stroke-width="2"/>
+  <g stroke-linecap="round">
+    <path d="M34 36V58" stroke="#E8C979" stroke-width="2.5"/>
+    <rect x="28" y="40" width="12" height="14" rx="1.5" fill="#E8C979"/>
+    <path d="M50 27V49" stroke="#E8C979" stroke-width="2.5"/>
+    <rect x="44" y="31" width="12" height="14" rx="1.5" fill="#E8C979"/>
+    <path d="M66 18V40" stroke="#E8C979" stroke-width="2.5"/>
+    <rect x="60" y="22" width="12" height="14" rx="1.5" fill="#E8C979"/>
+  </g>
+  <path d="M18 80L38 67L51 72L82 52" fill="none" stroke="#D6B36A" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

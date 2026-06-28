@@ -129,6 +129,7 @@ export interface ContentBlock {
 // Live trading session
 export interface LiveSession {
     id: string;
+    name?: string;
     startTime: number;
     endTime?: number;
     initialBalance: number;  // Số dư ban đầu

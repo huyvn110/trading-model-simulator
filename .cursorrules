@@ -1,0 +1,25 @@
+# AI Assistant System Instructions
+
+**CRITICAL CONTEXT:** 
+This project is an **Electron Desktop Application** built with Next.js, NOT a standard web application.
+
+## Development Rules for AI Builders:
+
+1. **Environment:** 
+   - This is a desktop app (`Trading Model Simulator` / `Trade Tracker`).
+   - The main process code for Electron is located in `app-electron/main.js`.
+   - The UI is built using Next.js (App Router), but it runs inside an Electron `BrowserWindow`.
+
+2. **Running the App:**
+   - To develop and run the desktop application, use: `npm run electron:dev`
+   - Do NOT assume standard Next.js web testing (`npm run dev` in a regular browser) is the final target, though it can be used for UI testing.
+
+3. **Capabilities:**
+   - Because this is an Electron app, you have access to native OS features, local File System (`fs`), and IPC communication between `main` and `renderer` processes.
+   - For database/storage, we can use local files (SQLite, CSV, JSON) or IndexedDB via `idb-keyval` instead of depending solely on remote databases.
+
+4. **Building:**
+   - The app is packaged into desktop executables (.exe) using `electron-builder`.
+   - Web-centric deployments (like Vercel or Netlify) are NOT the main target.
+
+Please remember this context in all future code suggestions, architecture designs, and refactoring!

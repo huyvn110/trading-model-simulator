@@ -148,41 +148,40 @@ export function SimpleNoteEditor({ blocks, onChange, placeholder, readOnly }: Si
                             <Box
                                 key={img.id}
                                 sx={{
-                                    position: 'relative',
+                                    display: 'flex',
+                                    flexDirection: 'column',
                                     borderRadius: 1,
                                     overflow: 'hidden',
                                     border: '1px solid',
                                     borderColor: 'divider',
-                                    '&:hover .delete-btn': { opacity: 1 },
+                                    bgcolor: 'background.paper',
                                 }}
                             >
-                                <IdbImage
-                                    src={img.value}
-                                    alt="Note"
-                                    style={{
-                                        maxWidth: 150,
-                                        maxHeight: 100,
-                                        objectFit: 'cover',
-                                        cursor: 'pointer',
-                                        display: 'block',
-                                    }}
-                                    onClick={() => setZoomImage(img.value)}
-                                />
+                                <Box sx={{ width: 150, height: 100, overflow: 'hidden', bgcolor: 'background.default' }}>
+                                    <IdbImage
+                                        src={img.value}
+                                        alt="Note"
+                                        style={{
+                                            width: '100%',
+                                            height: '100%',
+                                            objectFit: 'cover',
+                                            cursor: 'pointer',
+                                            display: 'block',
+                                        }}
+                                        onClick={() => setZoomImage(img.value)}
+                                    />
+                                </Box>
                                 {!readOnly && (
                                     <Tooltip title="Xóa">
                                         <IconButton
-                                            className="delete-btn"
                                             size="small"
                                             onClick={() => handleDeleteImage(img.id)}
                                             sx={{
-                                                position: 'absolute',
-                                                top: 2,
-                                                right: 2,
-                                                bgcolor: 'rgba(0,0,0,0.5)',
-                                                color: 'white',
-                                                opacity: 0,
-                                                transition: 'opacity 0.2s',
-                                                '&:hover': { bgcolor: 'rgba(0,0,0,0.7)' },
+                                                alignSelf: 'flex-end',
+                                                m: 0.25,
+                                                color: 'error.main',
+                                                bgcolor: 'transparent',
+                                                '&:hover': { bgcolor: 'action.hover' },
                                             }}
                                         >
                                             <DeleteIcon fontSize="small" />

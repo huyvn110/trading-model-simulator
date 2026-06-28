@@ -25,9 +25,9 @@ export function EquityChart({ trades, initialBalance, measurementMode }: EquityC
 
     const chartData = useMemo(() => {
         const getValue = (t: Trade) => {
-            if (measurementMode === '$') return t.pnl !== undefined ? t.pnl : t.measurementValue;
-            if (measurementMode === 'RR') return t.rr !== undefined ? t.rr : t.measurementValue;
-            return t.measurementValue;
+            if (measurementMode === '$') return Math.abs(t.pnl !== undefined ? t.pnl : t.measurementValue);
+            if (measurementMode === 'RR') return Math.abs(t.rr !== undefined ? t.rr : t.measurementValue);
+            return Math.abs(t.measurementValue);
         };
 
         if (trades.length === 0) return [];

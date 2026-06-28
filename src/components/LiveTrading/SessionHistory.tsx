@@ -91,7 +91,7 @@ function SessionDetailDialog({ session, open, onClose }: SessionDetailDialogProp
             <DialogTitle sx={{ pb: 0 }}>
                 <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
                     <Typography variant="h6" fontWeight={600}>
-                        📊 Session - {formatDate(session.startTime)}
+                        📊 {session.name || `Session - ${formatDate(session.startTime)}`}
                     </Typography>
                     <Stack direction="row" spacing={1}>
                         <Chip label={session.measurementMode} size="small" />
@@ -519,7 +519,7 @@ export function SessionHistory() {
                                     <ListItemText
                                         primary={
                                             <Typography variant="body1" fontWeight={500}>
-                                                {formatDate(session.startTime)}
+                                                {session.name || formatDate(session.startTime)}
                                             </Typography>
                                         }
                                         secondary={
@@ -619,7 +619,7 @@ export function SessionHistory() {
                     Xuất/Nhập dữ liệu
                     {sessionToExport && (
                         <Typography variant="body2" color="text.secondary">
-                            Session {new Date(sessionToExport.startTime).toLocaleDateString('vi-VN')}
+                        {sessionToExport.name || `Session ${new Date(sessionToExport.startTime).toLocaleDateString('vi-VN')}`}
                         </Typography>
                     )}
                 </DialogTitle>

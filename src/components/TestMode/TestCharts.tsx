@@ -16,15 +16,17 @@ import {
     TableRow,
     useTheme,
     alpha,
-    ToggleButton,
-    ToggleButtonGroup,
+    Button,
 } from '@mui/material';
+import { Share as ShareIcon } from '@mui/icons-material';
 import { useTestSessionStore } from '@/store/testSessionStore';
 import { useFactorStore } from '@/store/factorStore';
+import { useShareSession } from '@/lib/useShareSession';
 import { BestModelSummary } from './BestModelSummary';
 import { TopMetrics } from '@/components/shared/TopMetrics';
 import { TradingCalendar } from '@/components/shared/TradingCalendar';
 import { EquityChart } from '@/components/shared/EquityChart';
+import { PerformanceAnalytics } from '@/components/shared/PerformanceAnalytics';
 
 function RankBadge({ rank }: { rank: number }) {
     const colors: Record<number, { bg: string; color: string; label: string }> = {
@@ -54,11 +56,9 @@ function TestChartsComponent() {
     const isDark = theme.palette.mode === 'dark';
     const { currentSession, getCurrentSessionStats } = useTestSessionStore();
     const { factors } = useFactorStore();
+    const { shareData, isSharing } = useShareSession();
 
-    const [viewMode, setViewMode] = React.useState<'RR' | '$'>(() => {
-        if (currentSession?.measurementMode === '$') return '$';
-        return 'RR';
-    });
+    const viewMode = '$' as const;
 
     const getFactorName = useCallback((id: string) => {
         const factor = factors.find((f) => f.id === id);
@@ -85,9 +85,9 @@ function TestChartsComponent() {
             }
             acc[key].totalTrades++;
             
-            const tradeValue = viewMode === '$' 
+            const tradeValue = Math.abs(viewMode === '$'
                 ? (trade.pnl !== undefined ? trade.pnl : trade.measurementValue)
-                : (trade.rr !== undefined ? trade.rr : trade.measurementValue);
+                : (trade.rr !== undefined ? trade.rr : trade.measurementValue));
 
             if (trade.result === 'win') {
                 acc[key].wins++;
@@ -118,6 +118,18 @@ function TestChartsComponent() {
         rr: t.rr,
     })), [trades]);
 
+    const analyticsTrades = useMemo(() => trades.map(t => ({
+        id: t.id,
+        timestamp: t.timestamp,
+        tradeDate: t.tradeDate,
+        result: t.result,
+        measurementValue: t.measurementValue,
+        pnl: t.pnl,
+        rr: t.rr,
+        market: t.market || 'Unspecified',
+        setupName: t.factorIds.map(getFactorName).sort().join(' + ') || 'None',
+    })), [trades, getFactorName]);
+
     if (!currentSession || dynamicStats.length === 0) {
         return (
             <Paper elevation={0} sx={{ p: 2.5, borderRadius: 2, border: '1px solid', borderColor: 'divider' }}>
@@ -142,21 +154,22 @@ function TestChartsComponent() {
     return (
         <Stack spacing={3}>
             <Box sx={{ display: 'flex', justifyContent: 'flex-end', mb: -2 }}>
-                <ToggleButtonGroup
-                    value={viewMode}
-                    exclusive
-                    onChange={(_, val) => val && setViewMode(val)}
-                    size="small"
-                    sx={{
-                        bgcolor: 'background.paper',
-                        '& .MuiToggleButton-root': { py: 0.5, px: 2, fontSize: '0.8rem', fontWeight: 600 }
+                <Button 
+                    variant="contained" 
+                    startIcon={<ShareIcon />} 
+                    onClick={() => shareData('session', currentSession)}
+                    disabled={isSharing}
+                    sx={{ 
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%)',
+                        textTransform: 'none',
+                        fontWeight: 600,
+                        borderRadius: 2
                     }}
                 >
-                    <ToggleButton value="RR">RR</ToggleButton>
-                    <ToggleButton value="$">PnL ($)</ToggleButton>
-                </ToggleButtonGroup>
+                    {isSharing ? 'Đang tạo link...' : 'Chia sẻ Thống kê'}
+                </Button>
             </Box>
-
+            
             <TopMetrics trades={transformedTrades} initialBalance={initialBalance} measurementMode={viewMode} />
 
             <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
@@ -167,6 +180,12 @@ function TestChartsComponent() {
                     <TradingCalendar trades={transformedTrades} measurementMode={viewMode} />
                 </Box>
             </Stack>
+
+            <PerformanceAnalytics
+                trades={analyticsTrades}
+                initialBalance={initialBalance}
+                measurementMode={viewMode}
+            />
 
             <BestModelSummary />
 
